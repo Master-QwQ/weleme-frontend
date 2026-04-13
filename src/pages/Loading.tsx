@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store/useAppStore'
-import { wsService } from '../lib/websocket'
 import { Loader2 } from 'lucide-react'
 
 type LoadingStep = {

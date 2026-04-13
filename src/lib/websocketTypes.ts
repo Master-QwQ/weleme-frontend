@@ -9,6 +9,7 @@ export type ClientMessageType =
   | 'update_team_size'
   | 'send_public_message'
   | 'send_team_message'
+  | 'dissolve_team'
 
 export type ServerMessageType =
   | 'pong'

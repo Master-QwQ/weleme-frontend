@@ -6,6 +6,20 @@ import { api } from '@/lib/api'
 import SparkMD5 from 'spark-md5'
 import { getFingerprint } from '@/lib/fingerprint'
 
+export interface RegistrationData {
+  doctorId: string
+  doctorLevel: number
+  server: string
+  nickname: string
+  avatar: string
+  agreed: boolean
+  psychologicalGender: string
+  biologicalGender: string
+  birthday: string
+  contactType: string
+  contactValue: string
+}
+
 export default function Register() {
   const navigate = useNavigate()
 
@@ -43,9 +57,9 @@ export default function Register() {
   const [genderList, setGenderList] = useState<string[]>([])
 
   // Form Data
-  const [formData, setFormData] = useState(() => {
+  const [formData, setFormData] = useState<RegistrationData>(() => {
     const saved = localStorage.getItem('weleme_registration_form')
-    const initialData = {
+    const initialData: RegistrationData = {
       doctorId: '',
       doctorLevel: 114,
       server: '官方服务器',
@@ -86,7 +100,7 @@ export default function Register() {
         const avatars = data.avatars || []
         setAvatarList(avatars)
         if (!formData.avatar && avatars?.[0]) {
-          setFormData(prev => ({ ...prev, avatar: `/public/avatars/${avatars[0]}` }))
+          setFormData((prev: RegistrationData) => ({ ...prev, avatar: `/public/avatars/${avatars[0]}` }))
         }
         // 将所有头像URL存入全局缓存，供后续页面使用
         const cacheUpdates: Record<string, string> = {}
@@ -171,7 +185,7 @@ export default function Register() {
 
       if (result && result.success && result.data) {
         const data = result.data
-        setFormData(prev => {
+        setFormData((prev: RegistrationData) => {
           const combinedNickname = data.nickname || (data.nicknameText && data.nicknameSuffix ? `${data.nicknameText}#${data.nicknameSuffix}` : data.nicknameText || prev.nickname)
           return {
             ...prev,
@@ -509,7 +523,7 @@ export default function Register() {
                     onClick={() => {
                       if (genderList.length > 0) {
                         const randomGender = genderList[Math.floor(Math.random() * genderList.length)];
-                        setFormData(prev => ({ ...prev, psychologicalGender: randomGender }));
+                        setFormData((prev: RegistrationData) => ({ ...prev, psychologicalGender: randomGender }));
                       }
                     }}
                     className="text-xs text-primary hover:underline"
@@ -525,10 +539,10 @@ export default function Register() {
                   if (value === 'RANDOM_GENDER') {
                     if (genderList.length > 0) {
                       const randomGender = genderList[Math.floor(Math.random() * genderList.length)];
-                      setFormData(prev => ({ ...prev, psychologicalGender: randomGender }));
+                      setFormData((prev: RegistrationData) => ({ ...prev, psychologicalGender: randomGender }));
                     }
                   } else {
-                    setFormData(prev => ({ ...prev, psychologicalGender: value }));
+                    setFormData((prev: RegistrationData) => ({ ...prev, psychologicalGender: value }));
                   }
                 }}
                 className="w-full bg-input border border-border rounded p-2 text-sm outline-none focus:ring-1 focus:ring-primary"

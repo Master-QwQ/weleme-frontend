@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Moon, Sun, Users, Shuffle, MessageSquare, CheckCircle2, Wifi, WifiOff, UserMinus, X, Send, Check, Copy, LogOut } from 'lucide-react'
+import { Moon, Sun, Users, Shuffle, MessageSquare, CheckCircle2, Wifi, WifiOff, UserMinus, X, Send, Check, Copy } from 'lucide-react'
 
 import { useAppStore } from '../store/useAppStore'
 import { useChatWebSocket } from '../hooks/useChatWebSocket'
@@ -631,17 +631,30 @@ export default function Chat() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background">
-            {publicMessages.map(msg => (
-              <MessageBubble 
-                key={msg.id} 
-                msg={msg} 
-                getUserAvatar={getUserAvatar} 
-                onJoinTeamById={handleJoinTeamById}
-                showCopyButton={true}
-                showJoinButton={true}
-                onCopy={handleCopy}
-              />
-            ))}
+            {isLoading ? (
+              // Loading Skeleton for Public Chat
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={`skeleton-pub-${i}`} className="flex items-start gap-2 animate-pulse">
+                  <div className="w-10 h-10 rounded-full bg-muted shrink-0" />
+                  <div className="flex flex-col gap-1 w-full max-w-[70%]">
+                    <div className="h-4 w-24 bg-muted rounded" />
+                    <div className="h-12 bg-muted rounded-xl" />
+                  </div>
+                </div>
+              ))
+            ) : (
+              publicMessages.map(msg => (
+                <MessageBubble 
+                  key={msg.id} 
+                  msg={msg} 
+                  getUserAvatar={getUserAvatar} 
+                  onJoinTeamById={handleJoinTeamById}
+                  showCopyButton={true}
+                  showJoinButton={true}
+                  onCopy={handleCopy}
+                />
+              ))
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -756,15 +769,28 @@ export default function Chat() {
 
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 <div className="text-center text-xs text-muted-foreground py-2 border-b border-border/50">已进入小队通讯频道</div>
-                {teamMessages.map(msg => (
-                  <MessageBubble 
-                    key={msg.id} 
-                    msg={msg} 
-                    getUserAvatar={getUserAvatar} 
-                    onJoinTeamById={handleJoinTeamById} 
-                    onCopy={handleCopy} 
-                  />
-                ))}
+                {isLoading ? (
+                  // Loading Skeleton for Team Chat
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={`skeleton-team-${i}`} className="flex items-start gap-2 animate-pulse">
+                      <div className="w-10 h-10 rounded-full bg-muted shrink-0" />
+                      <div className="flex flex-col gap-1 w-full max-w-[70%]">
+                        <div className="h-4 w-20 bg-muted rounded" />
+                        <div className="h-10 bg-muted rounded-xl" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  teamMessages.map(msg => (
+                    <MessageBubble 
+                      key={msg.id} 
+                      msg={msg} 
+                      getUserAvatar={getUserAvatar} 
+                      onJoinTeamById={handleJoinTeamById} 
+                      onCopy={handleCopy} 
+                    />
+                  ))
+                )}
                 <div ref={teamMessagesEndRef} />
               </div>
               {/* Team Input Area with Send Button */}
