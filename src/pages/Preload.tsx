@@ -24,7 +24,7 @@ export default function Preload() {
       <div className="w-48 h-48 rounded-full overflow-hidden bg-muted shadow-lg">
         {/* Expression Pack Image */}
         <img
-          src="/public/qu_lai.jpg"
+          src="/asset/qu_lai.jpg"
           alt="qu_lai"
           className="w-full h-full object-cover"
           onError={(e) => {

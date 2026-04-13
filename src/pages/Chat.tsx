@@ -360,7 +360,7 @@ export default function Chat() {
 
   // 加载头像列表
   useEffect(() => {
-    fetch('/public/avatars.json')
+    fetch('/asset/avatars.json')
       .then(res => res.json())
       .then(data => setAvatarList(data.avatars || []))
       .catch(err => console.error('Failed to load avatars:', err))
@@ -605,7 +605,7 @@ export default function Chat() {
               className="ml-2 w-8 h-8 rounded-full hover:scale-110 active:scale-95 flex items-center justify-center transition-all duration-150"
               title="登出"
             >
-              <img src="/public/exit.svg" alt="退出" className="w-6 h-6" />
+              <img src="/asset/exit.svg" alt="退出" className="w-6 h-6" />
             </button>
           </div>
 
@@ -920,7 +920,7 @@ export default function Chat() {
                 className="grid grid-cols-5 gap-2 max-h-[240px] overflow-y-auto scrollbar-hide p-1"
               >
                 {avatarList.slice(0, avatarDisplayLimit).map((avatar, idx) => {
-                  const avatarUrl = `/public/avatars/${avatar}`
+                  const avatarUrl = `/asset/avatars/${avatar}`
                   const isSelected = user?.avatar === avatarUrl
                   return (
                     <div

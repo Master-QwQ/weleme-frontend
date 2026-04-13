@@ -94,25 +94,25 @@ export default function Register() {
 
   // Load Dynamic Data
   useEffect(() => {
-    fetch('/public/avatars.json')
+    fetch('/asset/avatars.json')
       .then(res => res.json())
       .then(data => {
         const avatars = data.avatars || []
         setAvatarList(avatars)
         if (!formData.avatar && avatars?.[0]) {
-          setFormData((prev: RegistrationData) => ({ ...prev, avatar: `/public/avatars/${avatars[0]}` }))
+          setFormData((prev: RegistrationData) => ({ ...prev, avatar: `/asset/avatars/${avatars[0]}` }))
         }
         // 将所有头像URL存入全局缓存，供后续页面使用
         const cacheUpdates: Record<string, string> = {}
         for (const avatar of avatars) {
-          const avatarUrl = `/public/avatars/${avatar}`
+          const avatarUrl = `/asset/avatars/${avatar}`
           cacheUpdates[avatar] = avatarUrl
         }
         updateAvatarCache(cacheUpdates)
       })
       .catch(err => console.error('Failed to load avatars:', err))
 
-    fetch('/public/genders.json')
+    fetch('/asset/genders.json')
       .then(res => res.json())
       .then(data => setGenderList(data.genders || []))
       .catch(err => console.error('Failed to load genders:', err))
@@ -464,7 +464,7 @@ export default function Register() {
                   className="grid grid-cols-5 auto-rows-min gap-4 p-2 bg-muted/30 rounded border border-border h-[111px] overflow-y-auto scrollbar-hide w-full"
                 >
                   {avatarList.slice(0, avatarDisplayLimit).map((avatar, idx) => {
-                    const avatarUrl = `/public/avatars/${avatar}`
+                    const avatarUrl = `/asset/avatars/${avatar}`
                     return (
                       <div
                         key={idx}
@@ -646,7 +646,7 @@ export default function Register() {
         >
           <div className="relative max-w-5xl w-full animate-in zoom-in-95 duration-300">
             <img
-              src={cardImage || '/public/card_example.jpg'}
+              src={cardImage || '/asset/card_example.jpg'}
               alt="Preview"
               className="w-full h-auto rounded-lg shadow-2xl border border-white/10"
             />
@@ -726,7 +726,7 @@ export default function Register() {
                   onClick={() => setShowPreview(true)}
                   className="relative aspect-video rounded-xl border border-white/10 bg-black/40 overflow-hidden cursor-zoom-in group shadow-inner"
                 >
-                  <img src="/public/card_example.jpg" alt="Example Card" className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
+                  <img src="/asset/card_example.jpg" alt="Example Card" className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-primary/50 shadow-2xl scale-90 group-hover:scale-100 transition-transform duration-300">
                       <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">点击查看原图</span>
