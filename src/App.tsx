@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { preloadAllAssets } from './lib/AssetPreloader'
 import {
   BrowserRouter as Router,
   Routes,
@@ -21,6 +22,11 @@ function App() {
     root.classList.remove('light', 'dark')
     root.classList.add(theme)
   }, [theme])
+
+  useEffect(() => {
+    // Start asynchronous asset preloading in background only once on mount
+    preloadAllAssets();
+  }, [])
 
   return (
     <Router>

@@ -215,6 +215,13 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
     })
   }, [])
 
+  const updateTeamSize = useCallback((maxMembers: number) => {
+    wsService.send({
+      type: 'update_team_size',
+      payload: { maxMembers }
+    })
+  }, [])
+
   return {
     sendPublicMessage,
     sendTeamMessage,
@@ -223,6 +230,7 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
     leaveTeam,
     dissolveTeam,
     removeMember,
+    updateTeamSize,
     isConnected: wsService.isConnected()
   }
 }

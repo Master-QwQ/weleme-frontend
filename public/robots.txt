@@ -1,0 +1,73 @@
+# ============================================
+# robots.txt for Weleme (卫了么)
+# 卫戍协议组队聊天平台
+# ============================================
+
+# 允许所有搜索引擎访问公开页面
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /about
+Allow: /help
+
+# 禁止访问敏感和私密页面
+Disallow: /api/
+Disallow: /ws/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /profile/
+Disallow: /settings/
+Disallow: /chat/
+Disallow: /team/
+Disallow: /users/
+Disallow: /auth/
+
+# 禁止访问静态资源中的私人文件
+Disallow: /public/avatars/
+Disallow: /cert/
+Disallow: /.env
+Disallow: /config.json
+
+# 禁止索引 WebSocket 端点
+Disallow: /ws/chat
+
+# Sitemap 位置（如果有的话）
+# Sitemap: https://weleme.com/sitemap.xml
+
+# ============================================
+# 针对特定爬虫的规则
+# ============================================
+
+# Google Bot
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /ws/
+Disallow: /chat/
+Disallow: /team/
+
+# Bing Bot
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /ws/
+Disallow: /chat/
+Disallow: /team/
+
+# Baidu Spider
+User-agent: Baiduspider
+Allow: /
+Disallow: /api/
+Disallow: /ws/
+Disallow: /chat/
+Disallow: /team/
+
+# 禁止所有 AI 训练爬虫（可选）
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /

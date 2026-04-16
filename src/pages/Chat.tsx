@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Moon, Sun, Users, Shuffle, MessageSquare, CheckCircle2, Wifi, WifiOff, UserMinus, X, Send, Check, Copy } from 'lucide-react'
+import { Moon, Sun, Users, Shuffle, MessageSquare, CheckCircle2, Wifi, WifiOff, UserMinus, X, Send, Check, Copy, Search } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 import { useAppStore } from '../store/useAppStore'
 import { useChatWebSocket } from '../hooks/useChatWebSocket'
@@ -116,11 +117,10 @@ function MessageBubble({ msg, onJoinTeam, showJoinButton, getUserAvatar, onJoinT
           </div>
           {/* 消息气泡 */}
           <div className={`flex items-end gap-1 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-            <div className={`px-3 py-2 rounded-xl text-sm break-all whitespace-pre-wrap ${
-              msg.isMe
-                ? 'bg-primary/10 border border-primary/20 rounded-tr-sm'
-                : 'bg-card border border-border rounded-tl-sm'
-            }`}>
+            <div className={`px-3 py-2 rounded-xl text-sm break-all whitespace-pre-wrap ${msg.isMe
+              ? 'bg-primary/10 border border-primary/20 rounded-tr-sm'
+              : 'bg-card border border-border rounded-tl-sm'
+              }`}>
               {renderContent(msg.content)}
             </div>
             {showCopyButton && (
@@ -198,13 +198,17 @@ export default function Chat() {
   const [createAllowRandom, setCreateAllowRandom] = useState(true)
   const [inviteCodeError, setInviteCodeError] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
+  const [showGroupWelcome, setShowGroupWelcome] = useState(false)
+  const [btnHoverCount, setBtnHoverCount] = useState(0)
+  const [isBtnSwapped, setIsBtnSwapped] = useState(false)
+  const [showQRPreview, setShowQRPreview] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [pendingPublicMessage, setPendingPublicMessage] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const teamMessagesEndRef = useRef<HTMLDivElement>(null)
-  
+
   const handleCopy = useCallback((text: string) => {
     // 检查是否包含招募邀请码，如果是，弹出特定提示
     const isRecruit = /\[[a-zA-Z0-9]{10,20}\]/.test(text)
@@ -221,6 +225,7 @@ export default function Chat() {
     leaveTeam,
     dissolveTeam,
     removeMember,
+    updateTeamSize,
     isConnected
   } = useChatWebSocket({
     onPublicMessage: (msg) => {
@@ -278,7 +283,7 @@ export default function Chat() {
     const loadHistory = async () => {
       try {
         setIsLoading(true)
-        
+
         // Load public messages
         const publicRes = await api.getPublicMessages()
         if (publicRes.success && publicRes.data) {
@@ -366,6 +371,17 @@ export default function Chat() {
       .catch(err => console.error('Failed to load avatars:', err))
   }, [])
 
+  // 检查是否显示加群弹窗
+  useEffect(() => {
+    const isSuppressed = localStorage.getItem('weleme_group_welcome_suppressed')
+    if (!isSuppressed) {
+      const timer = setTimeout(() => {
+        setShowGroupWelcome(true)
+      }, 1500) // 延迟一点显示，体验更好
+      return () => clearTimeout(timer)
+    }
+  }, [])
+
   const handleAvatarScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, clientHeight, scrollHeight } = e.currentTarget
     if (scrollHeight - scrollTop - clientHeight < 20) {
@@ -389,7 +405,7 @@ export default function Chat() {
         setShowAvatarPicker(false)
         // 重连WebSocket，让服务端自动广播新头像给所有在线用户
         wsService.disconnect()
-        wsService.connect(user.id, user.token).catch(() => {})
+        wsService.connect(user.id, user.token).catch(() => { })
       } else {
         setAvatarChangeError(res.message || '更换头像失败')
       }
@@ -485,7 +501,7 @@ export default function Chat() {
       setTimeout(() => setError(null), 3000)
       return
     }
-    
+
     const teamsWithSlots = onlineUsers
       .filter(u => u.teamId && u.userId !== user?.id)
       .reduce((acc: Map<string, number>, u) => {
@@ -539,7 +555,7 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground transition-colors duration-300 overflow-hidden">
-      
+
       {/* Global Toasts */}
       {error && (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-destructive text-destructive-foreground px-6 py-3 rounded-full shadow-lg flex items-center transition-all duration-300 animate-slide-down">
@@ -559,8 +575,15 @@ export default function Chat() {
           from { transform: translate(-50%, -20px); opacity: 0; }
           to { transform: translate(-50%, 0); opacity: 1; }
         }
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.6; }
+        }
         .animate-slide-down {
           animation: slide-down 0.3s ease-out forwards;
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 3s ease-in-out infinite;
         }
       `}</style>
 
@@ -600,7 +623,7 @@ export default function Chat() {
             <div className="text-sm font-medium">
               {user?.nickname}{user?.nicknameSuffix || ''}
             </div>
-            <button 
+            <button
               onClick={handleLogout}
               className="ml-2 w-8 h-8 rounded-full hover:scale-110 active:scale-95 flex items-center justify-center transition-all duration-150"
               title="登出"
@@ -609,7 +632,7 @@ export default function Chat() {
             </button>
           </div>
 
-          <button 
+          <button
             onClick={toggleTheme}
             className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition"
           >
@@ -620,7 +643,7 @@ export default function Chat() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex overflow-hidden">
-        
+
         {/* Left: Public Chat (70%) */}
         <section className="w-2/3 flex flex-col border-r border-border">
           <div className="h-12 border-b border-border flex items-center px-4 bg-muted/30">
@@ -629,7 +652,7 @@ export default function Chat() {
               公共大厅
             </h2>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background">
             {isLoading ? (
               // Loading Skeleton for Public Chat
@@ -644,10 +667,10 @@ export default function Chat() {
               ))
             ) : (
               publicMessages.map(msg => (
-                <MessageBubble 
-                  key={msg.id} 
-                  msg={msg} 
-                  getUserAvatar={getUserAvatar} 
+                <MessageBubble
+                  key={msg.id}
+                  msg={msg}
+                  getUserAvatar={getUserAvatar}
                   onJoinTeamById={handleJoinTeamById}
                   showCopyButton={true}
                   showJoinButton={true}
@@ -661,8 +684,8 @@ export default function Chat() {
           {/* Input Area */}
           <div className="h-24 bg-card border-t border-border p-4 flex flex-col justify-center">
             <div className="flex space-x-2">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
@@ -670,7 +693,7 @@ export default function Chat() {
                 className="flex-1 bg-input border border-border rounded-lg px-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
                 disabled={!isConnected}
               />
-              <button 
+              <button
                 onClick={handleSendMessage}
                 disabled={cooldown > 0 || !isConnected}
                 className={`px-6 rounded-lg font-medium transition ${cooldown > 0 || !isConnected ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow'}`}
@@ -710,6 +733,24 @@ export default function Chat() {
                   </button>
                 </>
               )}
+              {/* 修改人数按钮 - 仅队长可见 */}
+              {isTeamLeader && (
+                <div className="flex items-center gap-1 ml-4 bg-background/50 p-0.5 rounded-md border border-border">
+                  {[2, 3, 4].map(size => (
+                    <button
+                      key={size}
+                      onClick={() => updateTeamSize(size)}
+                      className={`text-[9px] font-black w-5 h-5 flex items-center justify-center rounded transition-all duration-200 ${team.maxMembers === size
+                        ? 'bg-primary text-primary-foreground shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]'
+                        : 'text-muted-foreground hover:bg-muted active:scale-95'
+                        }`}
+                      title={`将小队规模修改为 ${size} 人`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              )}
             </h2>
             {team?.id && (
               <button
@@ -734,34 +775,50 @@ export default function Chat() {
                     手动创建房间
                   </button>
                   <button onClick={handleRandomJoin} disabled={!isConnected} className="w-full py-2 bg-secondary text-secondary-foreground rounded-lg border border-border hover:bg-secondary/80 transition flex items-center justify-center disabled:opacity-50">
-                    <Shuffle className="w-4 h-4 mr-2" /> 
+                    <Shuffle className="w-4 h-4 mr-2" />
                     随机分配至未满员房间
                   </button>
                 </div>
               </div>
             </div>
           ) : (
-             // Team Chat Content
+            // Team Chat Content
             <>
               {/* Team Members List */}
               <div className="border-b border-border bg-card/50 p-3">
                 <div className="text-xs text-muted-foreground mb-2">队伍成员</div>
                 <div className="flex flex-wrap gap-2">
+                  {/* 已加入成员 */}
                   {[...team.members].sort((a, b) => a.id === team.creatorId ? -1 : b.id === team.creatorId ? 1 : 0).map(member => (
-                    <div key={member.id} className={`flex items-center space-x-1 pl-1 pr-2 py-1 rounded-full border transition ${member.id === team.creatorId ? 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]' : 'bg-muted/50 border-transparent'}`}>
+                    <div key={member.id} className={`flex items-center space-x-1 pl-1 pr-2 py-1 rounded-full border transition-all duration-300 transform hover:scale-[1.02] ${member.id === team.creatorId ? 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]' : 'bg-muted/50 border-transparent'}`}>
                       <img src={member.avatar} alt={member.nickname} className="w-5 h-5 rounded-full object-cover" />
-                      <span className={`text-xs ${member.id === team.creatorId ? 'text-amber-600 font-bold' : ''}`}>
+                      <span className={`text-xs ${member.id === team.creatorId ? 'text-amber-600 font-extrabold' : 'font-medium'}`}>
                         {member.nickname}{member.nicknameSuffix || ''}{member.id === team.creatorId ? ' (队长)' : ''}
                       </span>
                       {isTeamLeader && member.id !== user?.id && (
                         <button
                           onClick={() => handleRemoveMember(member.id, member.nickname)}
-                          className="ml-1 text-muted-foreground hover:text-destructive transition"
+                          className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
                           title="移除队员"
                         >
                           <UserMinus className="w-3 h-3" />
                         </button>
                       )}
+                    </div>
+                  ))}
+
+                  {/* 空余槽位预渲染 */}
+                  {Array.from({ length: Math.max(0, team.maxMembers - team.members.length) }).map((_, index) => (
+                    <div
+                      key={`empty-slot-${index}`}
+                      className="flex items-center space-x-2 pl-1 pr-3 py-1 rounded-full border border-dashed border-white/20 bg-white/5 select-none animate-pulse-slow shadow-inner"
+                    >
+                      <div className="w-5 h-5 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
+                        <span className="text-[10px] text-primary font-black tracking-tighter shadow-[0_0_5px_rgba(var(--primary-rgb),0.5)]">?</span>
+                      </div>
+                      <span className="text-[10px] text-white/70 font-black italic tracking-widest uppercase">
+                        席位待机 // WAITING
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -782,12 +839,12 @@ export default function Chat() {
                   ))
                 ) : (
                   teamMessages.map(msg => (
-                    <MessageBubble 
-                      key={msg.id} 
-                      msg={msg} 
-                      getUserAvatar={getUserAvatar} 
-                      onJoinTeamById={handleJoinTeamById} 
-                      onCopy={handleCopy} 
+                    <MessageBubble
+                      key={msg.id}
+                      msg={msg}
+                      getUserAvatar={getUserAvatar}
+                      onJoinTeamById={handleJoinTeamById}
+                      onCopy={handleCopy}
                     />
                   ))
                 )}
@@ -795,7 +852,7 @@ export default function Chat() {
               </div>
               {/* Team Input Area with Send Button */}
               <div className="h-20 border-t border-border p-3 bg-card flex items-center gap-2">
-                <input 
+                <input
                   type="text"
                   value={teamInputValue}
                   onChange={e => setTeamInputValue(e.target.value)}
@@ -821,60 +878,60 @@ export default function Chat() {
       {/* Create Room Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-           <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-             <div className="p-6">
-               <h3 className="text-xl font-bold mb-2">组成新的四区兄弟</h3>
-               <p className="text-sm text-muted-foreground mb-4">确定房间规模。创建完成后，您的招募信息将对外广播。</p>
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-xl font-bold mb-2">组成新的四区兄弟</h3>
+              <p className="text-sm text-muted-foreground mb-4">确定房间规模。创建完成后，您的招募信息将对外广播。</p>
 
-               {/* 招募消息输入 */}
-               <div className="mb-4">
-                 <label className="text-xs text-muted-foreground uppercase font-bold mb-1 block">招募消息 <span className="text-destructive">*</span></label>
-                 <p className="text-xs text-muted-foreground/60 mb-1.5">粘贴完整的招募消息，系统将自动提取邀请码</p>
-                 <input
-                   type="text"
-                   value={createRecruitMessage}
-                   onChange={e => { setCreateRecruitMessage(e.target.value); setInviteCodeError(null) }}
-                   placeholder="[dhn397nd8fkg53]想要阔爱猪咪邀请你加入卫戍协议:盟约【终极模拟】"
-                   className={`w-full bg-input border rounded p-2 text-sm focus:ring-1 focus:ring-primary outline-none ${inviteCodeError ? 'border-destructive' : 'border-border'}`}
-                 />
-                 {inviteCodeError && <p className="text-xs text-destructive mt-1">{inviteCodeError}</p>}
-               </div>
+              {/* 招募消息输入 */}
+              <div className="mb-4">
+                <label className="text-xs text-muted-foreground uppercase font-bold mb-1 block">招募消息 <span className="text-destructive">*</span></label>
+                <p className="text-xs text-muted-foreground/60 mb-1.5">粘贴完整的招募消息，系统将自动提取邀请码</p>
+                <input
+                  type="text"
+                  value={createRecruitMessage}
+                  onChange={e => { setCreateRecruitMessage(e.target.value); setInviteCodeError(null) }}
+                  placeholder="[xxxx]nickname邀请你加入卫戍协议:盟约【xx模拟】"
+                  className={`w-full bg-input border rounded p-2 text-sm focus:ring-1 focus:ring-primary outline-none ${inviteCodeError ? 'border-destructive' : 'border-border'}`}
+                />
+                {inviteCodeError && <p className="text-xs text-destructive mt-1">{inviteCodeError}</p>}
+              </div>
 
-               {/* 是否允许随机加入 */}
-               <div className="mb-4 flex items-center gap-2">
-                 <input
-                   type="checkbox"
-                   checked={createAllowRandom}
-                   onChange={e => setCreateAllowRandom(e.target.checked)}
-                   className="w-4 h-4 accent-primary"
-                 />
-                 <label className="text-sm cursor-pointer" onClick={() => setCreateAllowRandom(!createAllowRandom)}>
-                   允许他人通过"随机分配"加入此小队
-                 </label>
-               </div>
-               
-               <div className="grid grid-cols-3 gap-3 mb-2">
-                 {[2, 3, 4].map(size => (
-                   <button 
-                      key={size}
-                      onClick={() => handleCreateRoom(size)}
-                      className="py-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition text-center"
-                   >
-                     <div className="font-bold text-xl">{size} 人</div>
-                     <div className="text-xs text-muted-foreground">小队规模</div>
-                   </button>
-                 ))}
-               </div>
-             </div>
-             <div className="bg-muted p-4 flex justify-end space-x-3">
-               <button 
-                  onClick={() => { setShowCreateModal(false); setCreateRecruitMessage(''); setInviteCodeError(null) }}
-                  className="px-4 py-2 rounded border border-border hover:bg-card transition text-sm font-medium"
-               >
-                 取消
-               </button>
-             </div>
-           </div>
+              {/* 是否允许随机加入 */}
+              <div className="mb-4 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={createAllowRandom}
+                  onChange={e => setCreateAllowRandom(e.target.checked)}
+                  className="w-4 h-4 accent-primary"
+                />
+                <label className="text-sm cursor-pointer" onClick={() => setCreateAllowRandom(!createAllowRandom)}>
+                  允许他人通过"随机分配"加入此小队
+                </label>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mb-2">
+                {[2, 3, 4].map(size => (
+                  <button
+                    key={size}
+                    onClick={() => handleCreateRoom(size)}
+                    className="py-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition text-center"
+                  >
+                    <div className="font-bold text-xl">{size} 人</div>
+                    <div className="text-xs text-muted-foreground">小队规模</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="bg-muted p-4 flex justify-end space-x-3">
+              <button
+                onClick={() => { setShowCreateModal(false); setCreateRecruitMessage(''); setInviteCodeError(null) }}
+                className="px-4 py-2 rounded border border-border hover:bg-card transition text-sm font-medium"
+              >
+                取消
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -962,6 +1019,139 @@ export default function Chat() {
         </div>
       )}
 
+      {/* QR Preview Modal (Internal to Chat) */}
+      {/* QR Preview Modal (Internal to Chat) */}
+      {showQRPreview && (
+        <div
+          className="fixed inset-0 z-[160] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4"
+          onClick={() => setShowQRPreview(false)}
+        >
+          <div className="relative max-w-[75vw] max-h-[75vh] animate-in zoom-in-95 duration-300 flex flex-col items-center">
+            <img
+              src="/asset/qq_group_qr.png"
+              alt="QR Preview"
+              className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl border border-white/10"
+            />
+            <button
+              className="mt-4 text-white/50 hover:text-primary transition-colors text-[10px] font-black uppercase tracking-[0.4em]"
+              onClick={() => setShowQRPreview(false)}
+            >
+              点击背景或此处关闭预览 [ESC]
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Group Welcome Modal - Tactical Version */}
+      {showGroupWelcome && (
+        <div className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4">
+          <div className="bg-[#0b0c10] border border-white/10 rounded-2xl p-0 max-w-lg w-full max-h-[90vh] overflow-hidden shadow-[0_0_80px_rgba(var(--primary-rgb),0.2)] animate-in fade-in zoom-in-95 duration-500 flex flex-col relative">
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
+
+              {/* Message Header */}
+              <div className="space-y-4">
+                <div className="flex items-start space-x-4">
+                  <div className="w-1 bg-primary h-8 rounded-full" />
+                  <div className="space-y-1">
+                    <p className="text-lg font-bold text-foreground leading-snug">
+                      加入我们的<span className="text-primary px-1 font-black">银帕大家庭</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground tracking-wide font-medium italic">
+                      "在这里你甚至可以聊明日方舟!"
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Blocks */}
+              <div className="grid grid-cols-1 gap-4">
+
+                {/* QR Section */}
+                <div className="group relative bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden transition-all duration-300 hover:border-primary/30">
+                  <div className="p-2 border-b border-white/5 flex items-center justify-between">
+                    <span className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase italic px-2 py-0.5 bg-white/5 rounded">二维码 // IDENTIFICATION</span>
+                    <span className="text-[10px] font-mono text-primary/50">VALID STATUS</span>
+                  </div>
+                  <div className="p-3 flex flex-col items-center">
+                    <div
+                      onClick={() => setShowQRPreview(true)}
+                      className="relative w-64 h-[297px] bg-white/10 rounded-xl border border-white/10 p-1 cursor-zoom-in transition-transform duration-500 hover:scale-[1.02] active:scale-95 group/qr"
+                    >
+                      <img src="/asset/qq_group_qr.png" alt="QQ Group QR" className="w-full h-full object-contain rounded-lg" />
+                      <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover/qr:opacity-100 transition-opacity flex items-center justify-center">
+                        <Search className="text-white w-8 h-8 drop-shadow-lg" />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-[10px] text-center text-muted-foreground font-mono uppercase tracking-widest opacity-60">
+                      点击放大扫描识别 // SCAN
+                    </p>
+                  </div>
+                </div>
+
+                {/* Direct Link Section */}
+                <a
+                  href="https://qm.qq.com/q/H9JTfq1Ny8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative h-11 bg-primary text-primary-foreground rounded-2xl overflow-hidden transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] shadow-[0_10px_40px_rgba(var(--primary-rgb),0.3)]"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                  <div className="absolute inset-0 flex items-center justify-center space-x-3">
+                    <span className="font-black text-sm tracking-[0.2em] uppercase italic">立即加入!</span>
+                    <span className="text-[10px] opacity-50 font-mono tracking-tighter">IMPART</span>
+                  </div>
+                </a>
+              </div>
+
+              <div className="flex flex-col">
+                {/* Security Warning 和 Acknowledge Button 构成的交换区域 */}
+                {(() => {
+                  const MotionDiv = motion.div as any;
+                  return (
+                    <MotionDiv
+                      layout
+                      className={`flex flex-col space-y-4 p-6 ${isBtnSwapped ? 'flex-col-reverse space-y-reverse' : ''}`}
+                    >
+                      {/* Security Warning */}
+                      <MotionDiv
+                        layout
+                        className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-start space-x-3"
+                      >
+                        <div className="w-5 h-5 rounded bg-amber-500/20 flex items-center justify-center shrink-0 border border-amber-500/20">
+                          <span className="text-amber-500 text-[10px] font-black">!</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground/70 font-medium leading-tight">
+                          进群请遵守相关守则。禁止发布任何违规或推销信息。
+                        </p>
+                      </MotionDiv>
+
+                      {/* Acknowledge Button */}
+                      <MotionDiv layout>
+                        <button
+                          onMouseEnter={() => {
+                            if (btnHoverCount < 2) {
+                              setIsBtnSwapped(!isBtnSwapped)
+                              setBtnHoverCount(prev => prev + 1)
+                            }
+                          }}
+                          onClick={() => {
+                            localStorage.setItem('weleme_group_welcome_suppressed', 'true')
+                            setShowGroupWelcome(false)
+                          }}
+                          className="w-full py-4 bg-muted/30 border border-white/5 text-muted-foreground font-black rounded-xl hover:bg-muted/50 hover:text-white transition-all duration-300 tracking-[0.6em] uppercase text-xs cursor-pointer hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          我知道了
+                        </button>
+                      </MotionDiv>
+                    </MotionDiv>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

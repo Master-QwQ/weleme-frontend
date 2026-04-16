@@ -12,13 +12,7 @@ export default function Auth() {
   const setTempAuthData = useAppStore(state => state.setTempAuthData)
   const setVerifiedAt = useAppStore(state => state.setVerifiedAt)
   const user = useAppStore(state => state.user)
-
-  // Redirect if already logged in
-  useEffect(() => {
-    if (user?.token) {
-      navigate('/chat', { replace: true })
-    }
-  }, [user, navigate])
+  const verifiedAt = useAppStore(state => state.verifiedAt)
 
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -28,6 +22,39 @@ export default function Auth() {
   const [timer, setTimer] = useState(0)
   const [errorVisible, setErrorVisible] = useState(false)
   const [verifyError, setVerifyError] = useState<string | null>(null)
+  const [showPrompt, setShowPrompt] = useState(false)
+  const [redirectCountdown, setRedirectCountdown] = useState(5)
+
+  // Redirect if already logged in (with 7-day window check)
+  useEffect(() => {
+    if (user?.token && verifiedAt) {
+      const sevenDays = 7 * 24 * 60 * 60 * 1000
+      if (Date.now() - verifiedAt < sevenDays) {
+        setShowPrompt(true)
+      } else {
+        // Session expired (logical)
+        clearAuth()
+      }
+    }
+  }, []) // Run once on mount
+
+  // Auto-redirect timer
+  useEffect(() => {
+    let timer: any
+    if (showPrompt && redirectCountdown > 0) {
+      timer = setInterval(() => {
+        setRedirectCountdown(prev => prev - 1)
+      }, 1000)
+    } else if (showPrompt && redirectCountdown === 0) {
+      navigate('/chat', { replace: true })
+    }
+    return () => clearInterval(timer)
+  }, [showPrompt, redirectCountdown, navigate])
+  const clearAuth = () => {
+    setUser(null)
+    setEmailVerified(false)
+    setVerifiedAt(null)
+  }
 
   // Timer Effect
   useEffect(() => {
@@ -128,7 +155,7 @@ export default function Auth() {
           <h2 className="text-3xl font-black italic tracking-tighter text-primary uppercase">欢迎
           </h2>
           <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">
-            {step === 'email' ? '使用卫了么需要邮箱喔' : '验证码已发送至您的联络频带'}
+            {step === 'email' ? '使用卫了么需要邮箱喔' : '验证码已发送~'}
           </p>
         </div>
 
@@ -216,6 +243,58 @@ export default function Auth() {
           </div>
         </div>
       </div>
+
+      {/* Relogin Prompt Modal */}
+      {showPrompt && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0a0a0c] border border-white/10 rounded-2xl p-8 max-w-sm w-full space-y-8 animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden text-center">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/20 via-primary to-primary/20" />
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-black italic tracking-tighter text-primary uppercase">检测到有效凭证</h3>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">Session Detected</p>
+            </div>
+
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-20 h-20 rounded-full border-2 border-primary/20 p-1 relative">
+                <img src={user?.avatar || '/asset/avatars/default.jpg'} alt="User" className="w-full h-full rounded-full object-cover" />
+                <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg">
+                  {user?.nicknameSuffix || '#0000'}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-bold text-foreground tracking-tight">{user?.nickname}</p>
+                <p className="text-xs text-muted-foreground italic">欢迎回来，博士</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => navigate('/chat', { replace: true })}
+                className="w-full py-4 bg-primary text-primary-foreground font-black rounded-xl hover:bg-primary/90 transition shadow-[0_10px_30px_rgba(var(--primary-rgb),0.3)] tracking-[0.2em] relative group overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  直接进入系统
+                  <span className="text-[10px] opacity-60 font-mono">({redirectCountdown}s)</span>
+                </span>
+                <div
+                  className="absolute left-0 bottom-0 h-1 bg-white/30 transition-all duration-1000 ease-linear"
+                  style={{ width: `${(redirectCountdown / 5) * 100}%` }}
+                />
+              </button>
+              <button
+                onClick={() => {
+                  clearAuth()
+                  setShowPrompt(false)
+                }}
+                className="w-full py-3 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground hover:text-white transition-colors"
+              >
+                切换账号 / 重新验证
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

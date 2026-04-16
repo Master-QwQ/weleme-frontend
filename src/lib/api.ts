@@ -1,9 +1,15 @@
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
+export interface ApiOptions {
+  signal?: AbortSignal
+}
+
 export const api = {
-  get: async (endpoint: string) => {
+  get: async (endpoint: string, options?: ApiOptions) => {
     try {
-      const response = await fetch(`${BASE_URL}${endpoint}`)
+      const response = await fetch(`${BASE_URL}${endpoint}`, {
+        signal: options?.signal
+      })
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.message || `API Error: ${response.status}`)
@@ -17,7 +23,7 @@ export const api = {
     }
   },
 
-  post: async (endpoint: string, data: any) => {
+  post: async (endpoint: string, data: any, options?: ApiOptions) => {
     try {
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'POST',
@@ -25,6 +31,7 @@ export const api = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
+        signal: options?.signal
       })
       
       if (!response.ok) {
@@ -40,7 +47,7 @@ export const api = {
     }
   },
 
-  put: async (endpoint: string, data: any) => {
+  put: async (endpoint: string, data: any, options?: ApiOptions) => {
     try {
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'PUT',
@@ -48,6 +55,7 @@ export const api = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
+        signal: options?.signal
       })
       
       if (!response.ok) {
@@ -63,11 +71,12 @@ export const api = {
     }
   },
 
-  upload: async (endpoint: string, formData: FormData) => {
+  upload: async (endpoint: string, formData: FormData, options?: ApiOptions) => {
     try {
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'POST',
         body: formData,
+        signal: options?.signal
       })
       
       if (!response.ok) {

@@ -1,0 +1,24 @@
+flowchart TD
+    A["访问页面<br/>显示使用邮箱继续"] -->|异步无阻塞| B["后台加载asset的资源"]
+    A --> C["获取邮箱验证码"]
+    C --> D{验证码验证}
+    D -- 成功 --> E["验证完成<br/>可使用已加载的资源"]
+    D -- 失败 --> F["提示验证码错误<br/>重新获取/输入"]
+    F --> C
+    
+    %% 资源加载状态反馈
+    B --> B1{资源加载结果}
+    B1 -- 加载成功 --> B2["资源缓存完成"]
+    B1 -- 加载失败 --> B3["重试加载资源<br/>(不中断验证流程)"]
+    B3 --> B
+    
+    %% 样式定义
+    classDef initStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px,rounded:12px,font-size:14px;
+    classDef asyncStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,rounded:12px,font-size:14px;
+    classDef verifyStyle fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px,rounded:12px,font-size:14px;
+    classDef judgeStyle fill:#fff3e0,stroke:#ff8a00,stroke-width:2px,rounded:12px,font-size:14px;
+    
+    class A initStyle;
+    class B,B1,B2,B3 asyncStyle;
+    class C,D,E,F verifyStyle;
+    class D,B1 judgeStyle;

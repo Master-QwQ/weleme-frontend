@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Check, Music, VolumeX, Loader2, Search, Shuffle } from 'lucide-react'
+import { Upload, Check, Music, Loader2, Search, Shuffle } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { api } from '@/lib/api'
 import SparkMD5 from 'spark-md5'
 import { getFingerprint } from '@/lib/fingerprint'
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import "@/styles/datepicker_custom.css";
+import { parse, format, isValid } from "date-fns";
 
 export interface RegistrationData {
   doctorId: string
@@ -18,6 +22,11 @@ export interface RegistrationData {
   birthday: string
   contactType: string
   contactValue: string
+}
+
+interface LyricLine {
+  time: number
+  text: string
 }
 
 export default function Register() {
@@ -44,13 +53,16 @@ export default function Register() {
   }, [isEmailVerified, tempAuthData, navigate, verifiedAt, setEmailVerified])
 
   const [isLoading, setIsLoading] = useState(false)
+  const [isLongLoading, setIsLongLoading] = useState(false)
+  const [loadingAudio, setLoadingAudio] = useState<HTMLAudioElement | null>(null)
+  const [volume, setVolume] = useState(0.3)
+  const [lyrics, setLyrics] = useState<LyricLine[]>([])
+  const [currentLyricText, setCurrentLyricText] = useState('')
 
   // OCR & Upload status
   const [ocrSuccess, setOcrSuccess] = useState(false)
   const [cardImage, setCardImage] = useState<string | null>(null)
 
-  // BGM status
-  const [isMuted, setIsMuted] = useState(true)
 
   // Dynamic Data
   const [avatarList, setAvatarList] = useState<string[]>([])
@@ -143,6 +155,129 @@ export default function Register() {
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const fingerprint = getFingerprint()
 
+  // 生日转换逻辑: string (YYYY-MM-DD) <-> Date
+  const getSelectedDate = () => {
+    if (!formData.birthday) return null;
+    const d = parse(formData.birthday, 'yyyy-MM-dd', new Date());
+    return isValid(d) ? d : null;
+  };
+
+  const handleDateChange = (date: Date | null) => {
+    if (date) {
+      setFormData(prev => ({ ...prev, birthday: format(date, 'yyyy-MM-dd') }));
+    } else {
+      setFormData(prev => ({ ...prev, birthday: '' }));
+    }
+  };
+
+  const handleDateRawChange = (e: any) => {
+    const rawValue = e?.target?.value;
+    if (!rawValue) return;
+    
+    // 智能识别 8 位纯数字格式，如 20060909
+    if (/^\d{8}$/.test(rawValue)) {
+      const year = parseInt(rawValue.slice(0, 4));
+      const month = parseInt(rawValue.slice(4, 6));
+      const day = parseInt(rawValue.slice(6, 8));
+      const date = new Date(year, month - 1, day);
+      if (isValid(date) && date.getFullYear() === year) {
+        handleDateChange(date);
+      }
+    }
+  };
+
+  // 解析 LRC 格式
+  const parseLRC = (lrc: string): LyricLine[] => {
+    const lines = lrc.split('\n')
+    const result: LyricLine[] = []
+    const timeReg = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/
+
+    for (const line of lines) {
+      const match = timeReg.exec(line)
+      if (match) {
+        const mins = parseInt(match[1])
+        const secs = parseInt(match[2])
+        const ms = parseInt(match[3])
+        const time = mins * 60 + secs + (ms > 99 ? ms / 1000 : ms / 100)
+        const text = line.replace(timeReg, '').trim()
+        if (text) result.push({ time, text })
+      }
+    }
+    return result.sort((a, b) => a.time - b.time)
+  }
+
+  // BGM 与 歌词联动控制
+  useEffect(() => {
+    let audio: HTMLAudioElement | null = null
+    let fadeInterval: any = null
+
+    if (isLongLoading) {
+      // 1. 加载并解析歌词 (如果尚未加载)
+      if (lyrics.length === 0) {
+        fetch('/asset/loading.lrc')
+          .then(res => res.text())
+          .then(text => setLyrics(parseLRC(text)))
+          .catch(e => console.warn('Failed to load lyrics:', e))
+      }
+
+      // 2. 初始化音频
+      audio = new Audio('/asset/loading.mp3')
+      audio.loop = true
+      audio.volume = 0
+      setLoadingAudio(audio)
+
+      // 3. 歌词同步逻辑
+      const onTimeUpdate = () => {
+        if (!audio) return
+        const curTime = audio.currentTime
+        // 查找当前时间对应的歌词行
+        let activeLine = ''
+        for (let i = lyrics.length - 1; i >= 0; i--) {
+          if (curTime >= lyrics[i].time) {
+            activeLine = lyrics[i].text
+            break
+          }
+        }
+        setCurrentLyricText(activeLine)
+      }
+
+      audio.addEventListener('timeupdate', onTimeUpdate)
+
+      // 4. 尝试播放并淡入
+      audio.play().then(() => {
+        let currentVol = 0
+        const targetVol = volume
+        fadeInterval = setInterval(() => {
+          currentVol += 0.05
+          if (currentVol >= targetVol) {
+            audio!.volume = targetVol
+            clearInterval(fadeInterval)
+          } else {
+            audio!.volume = currentVol
+          }
+        }, 50)
+      }).catch(e => console.warn('BGM blocked:', e))
+    }
+
+    return () => {
+      if (fadeInterval) clearInterval(fadeInterval)
+      if (audio) {
+        // 使用现有的 fadeOutAudio 渐渐停止音乐，提升体验感
+        fadeOutAudio(audio, 1500)
+        setLoadingAudio(null)
+        // 歌词不要瞬间消失，可以略微留存一点点时间
+        setTimeout(() => setCurrentLyricText(''), 1500)
+      }
+    }
+  }, [isLongLoading, lyrics.length]) // 注意：由于歌词是异步加载的，长度变化时也会触发重连逻辑
+
+  // 音量实时同步
+  useEffect(() => {
+    if (loadingAudio) {
+      loadingAudio.volume = volume
+    }
+  }, [volume, loadingAudio])
+
   // OCR & Image Processing
   const processImage = async (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
@@ -167,21 +302,82 @@ export default function Register() {
           resolve(newFile)
         }, 'image/jpeg', 0.85)
       }
-      img.onerror = reject
     })
+  }
+
+  // 辅助函数：渐渐停止音乐
+  const fadeOutAudio = (audio: HTMLAudioElement, duration = 1500) => {
+    if (!audio) return
+    const startVolume = audio.volume
+    const steps = 20
+    const intervalTime = duration / steps
+    const volumeStep = startVolume / steps
+
+    const timer = setInterval(() => {
+      if (audio.volume > volumeStep) {
+        audio.volume -= volumeStep
+      } else {
+        audio.volume = 0
+        audio.pause()
+        clearInterval(timer)
+      }
+    }, intervalTime)
   }
 
   const startOCR = async (file: File) => {
     setIsLoading(true)
+    setIsLongLoading(true)
+
+    // 创建 AbortController 用于超时控制
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      console.log('OCR timeout triggered after 30s, aborting request...')
+      controller.abort()
+      console.warn('OCR request timed out after 30s')
+    }, 30000) // 30秒超时
+
     try {
       const processedFile = await processImage(file)
       setCardImage(URL.createObjectURL(processedFile))
 
-      const fd = new FormData()
-      fd.append('file', processedFile)
-      fd.append('fingerprint', fingerprint)
+      const urlRes = await api.get(
+        `/api/ocr/upload-url?file_name=${encodeURIComponent(processedFile.name)}&content_type=${encodeURIComponent(processedFile.type)}&fingerprint=${fingerprint}`,
+        { signal: controller.signal }
+      )
+      if (!urlRes.success || !urlRes.data) throw new Error('Failed to get upload URL')
 
-      const result = await api.upload('/api/ocr/card', fd)
+      const { upload_url: url, key, policy, ...tosParams } = urlRes.data
+      const objectKey = key // Use the key returned from backend
+
+      const tosFormData = new FormData()
+      tosFormData.append('key', key) // 'key' MUST be early in the FormData
+      tosFormData.append('policy', policy)
+      tosFormData.append('x-tos-algorithm', tosParams['x-tos-algorithm'])
+      tosFormData.append('x-tos-credential', tosParams['x-tos-credential'])
+      tosFormData.append('x-tos-date', tosParams['x-tos-date'])
+      tosFormData.append('x-tos-signature', tosParams['x-tos-signature'])
+      if (tosParams['x-tos-security-token']) {
+        tosFormData.append('x-tos-security-token', tosParams['x-tos-security-token'])
+      }
+      tosFormData.append('file', processedFile) // Use processedFile, and must be last
+
+      const uploadRes = await fetch(url, {
+        method: 'POST',
+        body: tosFormData,
+        signal: controller.signal,
+      })
+
+      if (!uploadRes.ok) {
+        const errorText = await uploadRes.text()
+        console.error('TOS upload error:', errorText)
+        throw new Error(`TOS POST upload failed: ${uploadRes.status}`)
+      }
+
+      const fd = new FormData()
+      fd.append('fingerprint', fingerprint)
+      fd.append('object_key', objectKey)
+
+      const result = await api.upload('/api/ocr/card', fd, { signal: controller.signal })
 
       if (result && result.success && result.data) {
         const data = result.data
@@ -199,11 +395,23 @@ export default function Register() {
       } else if (result && !result.success) {
         alert(result.message || '识别失败')
       }
-    } catch (err) {
-      console.error('OCR failed:', err)
-      alert('解析失败，请检查图像是否清晰')
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.log('AbortError caught, displaying timeout alert...')
+        alert('识别超时（30秒），请检查网络或重试')
+        // 重置UI状态
+        setIsLoading(false)
+        setIsLongLoading(false)
+        setCardImage(null)
+        setOcrSuccess(false)
+      } else {
+        console.error('OCR failed:', err)
+        alert('解析失败，请检查图像是否清晰')
+      }
     } finally {
+      clearTimeout(timeoutId)
       setIsLoading(false)
+      setIsLongLoading(false)
     }
   }
 
@@ -214,8 +422,8 @@ export default function Register() {
     input.onchange = async (e: any) => {
       const file = e.target.files[0]
       if (file) {
-        setIsLoading(true)
         try {
+          // 静默检查配额，不再触发全局 Loading 闪现
           const usageResult = await api.get(`/api/ocr/usage?fingerprint=${fingerprint}`)
           if (usageResult && typeof usageResult.count === 'number') {
             const limit = usageResult.limit || 5
@@ -238,8 +446,6 @@ export default function Register() {
           setPendingFile(file)
           setCardImage(URL.createObjectURL(file))
           setShowUsageConfirm(true)
-        } finally {
-          setIsLoading(false)
         }
       }
     }
@@ -302,36 +508,36 @@ export default function Register() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center py-12 px-4 space-y-8">
-      {/* Hidden Audio Element for BGM */}
-      <audio
-        src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-        autoPlay
-        loop
-        muted={isMuted}
-      />
+
 
       <div className="max-w-4xl w-full bg-card rounded-xl p-8 border border-border shadow-xl relative overflow-hidden transition-all duration-300">
 
-        {/* BGM Toggle */}
-        <button
-          onClick={() => setIsMuted(!isMuted)}
-          className="absolute top-4 right-4 p-2 bg-muted rounded-full hover:bg-muted/80 transition"
-          title={isMuted ? "取消静音开始播放获取信息素的BGM" : "静音"}
-        >
-          {isMuted ? <VolumeX className="w-5 h-5 text-muted-foreground" /> : <Music className="w-5 h-5 text-primary" />}
-        </button>
+
 
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold tracking-tight mb-2">欢迎新博士的加入</h1>
           <p className="text-muted-foreground">请上传个人名片并完成注册喵</p>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Card Upload Section */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg flex items-center">
-              1. 个人名片上传区
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">1. 个人名片上传区</h3>
+              <div className="flex items-center space-x-2 bg-muted/30 px-3 py-1.5 rounded-full border border-border">
+                <Music className="w-3 h-3 text-primary" />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="w-16 h-1 accent-primary cursor-pointer"
+                  title="识别语音音量调节"
+                />
+                <span className="text-[10px] font-mono w-6 text-muted-foreground">{Math.round(volume * 100)}%</span>
+              </div>
+            </div>
 
             <div
               className="relative aspect-video w-full border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center cursor-default bg-muted/20 overflow-hidden group"
@@ -571,10 +777,15 @@ export default function Register() {
               <label className="text-xs text-muted-foreground uppercase font-bold flex items-center">
                 出生日期 <span className="text-destructive ml-1">*</span>
               </label>
-              <input
-                type="date"
-                value={formData.birthday}
-                onChange={e => setFormData({ ...formData, birthday: e.target.value })}
+              <DatePicker
+                selected={getSelectedDate()}
+                onChange={handleDateChange}
+                onChangeRaw={handleDateRawChange}
+                dateFormat="yyyy/MM/dd"
+                placeholderText="YYYY/MM/DD"
+                showYearDropdown
+                scrollableYearDropdown
+                yearDropdownItemNumber={100}
                 className={`w-full bg-input border rounded p-2 text-sm outline-none focus:ring-1 focus:ring-primary ${!formData.birthday ? 'border-destructive/50' : 'border-border'}`}
                 required
               />
@@ -625,18 +836,63 @@ export default function Register() {
       {isLoading && (
         <div className="fixed inset-0 z-[100] bg-background/90 backdrop-blur-md flex flex-col items-center justify-center space-y-6 text-center">
           <div className="relative">
-            <Loader2 className="w-16 h-16 text-primary animate-spin" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-2 h-2 bg-primary rounded-full animate-ping" />
+            <div className="space-y-6 flex flex-col items-center">
+              <img
+                src="/asset/loading.gif"
+                alt="Loading..."
+                className="w-48 h-auto rounded-lg shadow-2xl border border-primary/20 animate-in zoom-in-95 duration-500"
+              />
+              <div className="space-y-1">
+                <p className="text-xl font-black tracking-[0.2em] text-primary uppercase animate-pulse">
+                  正在使用触须分辨信息素...
+                </p>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">
+                  DECODING PHEROMONES // DOCTOR RECOGNITION
+                </p>
+              </div>
+
+              {/* 加载中的音量调节 */}
+              <div className="flex items-center space-x-3 bg-black/40 px-4 py-2 rounded-full border border-white/10 mt-4 backdrop-blur-sm">
+                <Music className="w-4 h-4 text-primary" />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value)
+                    setVolume(v)
+                    if (loadingAudio) loadingAudio.volume = v
+                  }}
+                  className="w-32 h-1 accent-primary cursor-pointer"
+                />
+                <span className="text-xs font-mono w-8 text-primary/80">{Math.round(volume * 100)}%</span>
+              </div>
+
+              {/* 歌词轨道 */}
+              <div className="h-8 flex items-center justify-center overflow-hidden">
+                <p className="text-sm font-bold text-white/90 italic tracking-wider animate-in slide-in-from-bottom-2 duration-500 key={currentLyricText}">
+                  {currentLyricText || '// 正在同步频率...'}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xl font-medium tracking-[0.2em] animate-pulse text-primary uppercase">
-              正在使用触须分辨信息素...
-            </p>
           </div>
         </div>
       )}
+
+      {/* Debug Controls (Temporary) */}
+      {/* <div className="fixed top-4 right-4 z-[200] flex flex-col gap-2 opacity-20 hover:opacity-100 transition-opacity">
+        <button 
+          onClick={() => {
+            setIsLoading(!isLoading)
+            setIsLongLoading(!isLongLoading)
+          }}
+          className="bg-black/80 text-[10px] text-white px-3 py-1 rounded border border-white/20 whitespace-nowrap"
+        >
+          {isLoading ? '关闭' : '开启'} 调试遮罩
+        </button>
+      </div> */}
 
       {/* Image Preview Modal */}
       {showPreview && (
@@ -659,6 +915,7 @@ export default function Register() {
           </div>
         </div>
       )}
+
       {/* Usage Confirmation Modal */}
       {showUsageConfirm && (
         <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -683,7 +940,7 @@ export default function Register() {
               <button
                 onClick={() => {
                   setShowUsageConfirm(false)
-                  // File is already selected and preview is showing, user just confirms they know the quota
+                  handleVerifyAndStart()
                 }}
                 className="flex-1 py-3 text-xs font-black uppercase tracking-widest bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)]"
               >
@@ -696,7 +953,7 @@ export default function Register() {
       {/* Welcome Modal */}
       {showWelcome && (
         <div className="fixed inset-0 z-[130] bg-black/85 backdrop-blur-xl flex items-center justify-center p-4">
-          <div className="bg-[#0a0a0c] border border-white/5 rounded-3xl p-10 max-w-lg w-full shadow-[0_0_100px_rgba(0,0,0,0.8)] space-y-8 animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden border-t-primary/20">
+          <div className="bg-[#0a0a0c] border border-white/5 rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto scrollbar-hide shadow-[0_0_100px_rgba(0,0,0,0.8)] space-y-8 animate-in fade-in zoom-in-95 duration-300 relative border-t-primary/20">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[80px] -mr-16 -mt-16" />
 
