@@ -671,6 +671,7 @@ export default function Chat() {
                   key={msg.id}
                   msg={msg}
                   getUserAvatar={getUserAvatar}
+                  onJoinTeam={handleJoinTeamById}
                   onJoinTeamById={handleJoinTeamById}
                   showCopyButton={true}
                   showJoinButton={true}
@@ -843,6 +844,7 @@ export default function Chat() {
                       key={msg.id}
                       msg={msg}
                       getUserAvatar={getUserAvatar}
+                      onJoinTeam={handleJoinTeamById}
                       onJoinTeamById={handleJoinTeamById}
                       onCopy={handleCopy}
                     />
