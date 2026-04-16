@@ -24,8 +24,6 @@ class WebSocketService {
   private onOpenCallbacks: ConnectionCallback[] = []
   private onCloseCallbacks: ConnectionCallback[] = []
 
-  private preferredProtocol: 'ws' | 'wss' | null = null
-
   connect(userId: string, token?: string): Promise<void> {
     // 如果已经连接，直接返回
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -55,21 +53,18 @@ class WebSocketService {
       this.token = token || null
       this.isManualClose = false
 
-      // 自动降级逻辑：优先使用用户要求的协议，或者根据环境决定
-      const isDev = import.meta.env.DEV
+      // 协议检测：HTTPS 下必须使用 WSS，否则浏览器会拦截
+      const isHttps = window.location.protocol === 'https:'
+      const protocol = isHttps ? 'wss' : 'ws'
+      
       let wsUrl: string
-      
-      // 这里的逻辑：如果有 preferredProtocol（说明之前尝试过或降级过），则使用它
-      // 否则，根据用户要求“优先 wss”
-      const currentProtocol = this.preferredProtocol || 'wss'
-      
       if (isDev) {
         // 开发环境：通过 Vite 代理
-        wsUrl = `${currentProtocol}://${window.location.host}/ws/chat`
+        wsUrl = `${protocol}://${window.location.host}/ws/chat`
       } else {
         // 生产环境
         const baseUrl = BASE_URL || window.location.origin
-        wsUrl = baseUrl.replace(/^http(s)?/, currentProtocol) + '/ws/chat'
+        wsUrl = baseUrl.replace(/^http(s)?/, protocol) + '/ws/chat'
       }
 
       // 携带 token 鉴权
@@ -112,15 +107,6 @@ class WebSocketService {
         this.ws.onerror = (error) => {
           console.error('[WebSocket] Error occurred:', error)
           this.isConnecting = false
-
-          // 降级逻辑：如果是 wss 失败且没有尝试过 ws
-          const currentProtocol = this.preferredProtocol || 'wss'
-          if (currentProtocol === 'wss') {
-            console.warn('[WebSocket] WSS connection failed, falling back to WS...')
-            this.preferredProtocol = 'ws'
-            this.connect(userId, token).then(resolve).catch(reject)
-            return
-          }
 
           this.onErrorCallbacks.forEach(cb => cb('WebSocket 连接错误，请检查后端服务是否运行'))
           reject(error)
