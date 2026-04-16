@@ -137,10 +137,17 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
   }, [setWsConnected])
 
   // Handle connection close
-  const handleClose = useCallback(() => {
-    console.log('[WebSocket] Connection closed')
+  const handleClose = useCallback((code?: number) => {
+    console.log('[WebSocket] Connection closed with code:', code)
     setWsConnected(false)
-  }, [setWsConnected])
+
+    if (code === 4001) {
+      alert('登录已失效或在别处登录，请重新登录')
+      setUser(null)
+      setTeam(null)
+      window.location.href = '/auth'
+    }
+  }, [setWsConnected, setUser, setTeam])
 
   useEffect(() => {
     if (!user?.id) {

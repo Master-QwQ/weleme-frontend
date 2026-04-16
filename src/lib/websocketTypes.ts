@@ -82,4 +82,4 @@ export type WSMessage<T = any> = {
 
 export type MessageCallback = (message: WSMessage) => void
 export type ErrorCallback = (error: string) => void
-export type ConnectionCallback = () => void
+export type ConnectionCallback = (code?: number) => void

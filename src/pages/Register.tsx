@@ -615,7 +615,9 @@ export default function Register() {
             <div className="space-y-3">
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="text-xs text-muted-foreground uppercase font-bold">博士ID</label>
+                  <label className="text-xs text-muted-foreground uppercase font-bold flex items-center">
+                    博士ID <span className="text-destructive ml-1">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.doctorId}
@@ -651,7 +653,9 @@ export default function Register() {
                   </select>
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-muted-foreground uppercase font-bold">博士昵称 (含#后缀)</label>
+                  <label className="text-xs text-muted-foreground uppercase font-bold flex items-center">
+                    博士昵称 (含#后缀) <span className="text-destructive ml-1">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.nickname}
@@ -710,7 +714,7 @@ export default function Register() {
               type="checkbox"
               checked={formData.agreed}
               onChange={e => setFormData({ ...formData, agreed: e.target.checked })}
-              className="w-5 h-5 accent-primary"
+              className="w-5 h-5 accent-blue-500"
             />
             <span className="font-medium text-sm">我同意卫了么收集额外信息用于未来的神秘项目</span>
           </label>

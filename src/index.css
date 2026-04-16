@@ -99,3 +99,23 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Mobile: use dynamic viewport height to avoid iOS toolbar issues */
+@supports (height: 100dvh) {
+  .h-screen {
+    height: 100dvh !important;
+  }
+}
+
+/* Touch-friendly tap targets */
+@media (max-width: 767px) {
+  button, a, [role="button"] {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  
+  /* Safe area padding for notched devices */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

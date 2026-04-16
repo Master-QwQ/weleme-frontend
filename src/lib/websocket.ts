@@ -57,6 +57,7 @@ class WebSocketService {
       const isHttps = window.location.protocol === 'https:'
       const protocol = isHttps ? 'wss' : 'ws'
       
+      const isDev = import.meta.env.DEV
       let wsUrl: string
       if (isDev) {
         // 开发环境：通过 Vite 代理
@@ -72,7 +73,7 @@ class WebSocketService {
         wsUrl += `?token=${encodeURIComponent(token)}`
       }
 
-      console.log(`[WebSocket] Trying ${currentProtocol.toUpperCase()}...`)
+      console.log(`[WebSocket] Trying ${protocol.toUpperCase()}...`)
       console.log('[WebSocket] Connecting to:', wsUrl)
 
       try {
@@ -116,7 +117,7 @@ class WebSocketService {
           console.log('[WebSocket] Disconnected, code:', event.code)
           this.isConnecting = false
           this.stopHeartbeat()
-          this.onCloseCallbacks.forEach(cb => cb())
+          this.onCloseCallbacks.forEach(cb => cb(event.code))
 
           // 4001 = 鉴权失败，不重连
           if (event.code === 4001) {

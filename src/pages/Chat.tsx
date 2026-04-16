@@ -202,6 +202,7 @@ export default function Chat() {
   const [btnHoverCount, setBtnHoverCount] = useState(0)
   const [isBtnSwapped, setIsBtnSwapped] = useState(false)
   const [showQRPreview, setShowQRPreview] = useState(false)
+  const [activeTab, setActiveTab] = useState<'public' | 'team'>('public')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
@@ -522,6 +523,16 @@ export default function Chat() {
   }
 
   const handleJoinTeamById = (userId: string) => {
+    // 点击自己名的容错处理
+    if (user && userId === user.id) {
+      if (team) {
+        alert('您已在此队伍中')
+      } else {
+        alert('该用户（您当前）不在任何队伍中，请重新发送招募或加入队伍')
+      }
+      return
+    }
+
     const targetUser = onlineUsers.find(u => u.userId === userId)
     if (!targetUser || !targetUser.teamId) {
       alert('该用户不在任何队伍中')
@@ -588,65 +599,95 @@ export default function Chat() {
       `}</style>
 
       {/* Header */}
-      <header className="h-16 flex items-center justify-between px-6 bg-card border-b border-border shadow-sm shrink-0">
+      <header className="h-14 md:h-16 flex items-center justify-between px-3 md:px-6 bg-card border-b border-border shadow-sm shrink-0">
         <div className="flex items-center space-x-2">
-          <MessageSquare className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold tracking-tight">卫了么</h1>
+          <MessageSquare className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+          <h1 className="text-lg md:text-xl font-bold tracking-tight">卫了么</h1>
           {(!isConnected || !wsConnected) && (
-            <span className="ml-4 text-xs bg-destructive text-destructive-foreground px-2 py-0.5 rounded-full animate-pulse">
-              连接已断开...
+            <span className="ml-2 md:ml-4 text-[10px] md:text-xs bg-destructive text-destructive-foreground px-1.5 md:px-2 py-0.5 rounded-full animate-pulse">
+              断开
             </span>
           )}
         </div>
 
-        <div className="flex items-center space-x-4">
-          {/* Connection Status */}
-          <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded-full ${wsConnected && isConnected ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+        <div className="flex items-center space-x-2 md:space-x-4">
+          {/* Connection Status - 移动端只显示图标 */}
+          <div className={`flex items-center space-x-1 text-xs px-1.5 md:px-2 py-1 rounded-full ${wsConnected && isConnected ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
             {wsConnected && isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-            <span>{wsConnected && isConnected ? '已连接' : '断开'}</span>
+            <span className="hidden md:inline">{wsConnected && isConnected ? '已连接' : '断开'}</span>
           </div>
 
-          {/* Online Users Count */}
-          <div className="text-xs text-muted-foreground">
-            在线: {onlineUsers.length}
+          {/* Online Users Count - 移动端精简 */}
+          <div className="text-[10px] md:text-xs text-muted-foreground">
+            <span className="hidden md:inline">在线: {onlineUsers.length > 99 ? '99+' : onlineUsers.length}</span>
+            <span className="md:hidden">{onlineUsers.length > 9 ? '9+' : onlineUsers.length}</span>
           </div>
 
           {/* User Info Block */}
-          <div className="flex items-center space-x-3 bg-muted/50 py-1 px-3 rounded-full border border-border">
+          <div className="flex items-center space-x-1.5 md:space-x-3 bg-muted/50 py-1 px-2 md:px-3 rounded-full border border-border">
             <button
               onClick={() => { setShowAvatarPicker(true); setAvatarChangeError(null) }}
-              className="w-8 h-8 rounded-full bg-primary/20 overflow-hidden border border-primary flex items-center justify-center font-bold text-xs hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer"
+              className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-primary/20 overflow-hidden border border-primary flex items-center justify-center font-bold text-xs hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer"
               title="更换头像"
             >
               {user?.avatar ? <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" /> : 'DR'}
             </button>
-            <div className="text-sm font-medium">
+            <div className="text-xs md:text-sm font-medium hidden md:block">
               {user?.nickname}{user?.nicknameSuffix || ''}
             </div>
             <button
               onClick={handleLogout}
-              className="ml-2 w-8 h-8 rounded-full hover:scale-110 active:scale-95 flex items-center justify-center transition-all duration-150"
+              className="w-7 h-7 md:w-8 md:h-8 rounded-full hover:scale-110 active:scale-95 flex items-center justify-center transition-all duration-150"
               title="登出"
             >
-              <img src="/asset/exit.svg" alt="退出" className="w-6 h-6" />
+              <img src="/asset/exit.svg" alt="退出" className="w-5 h-5 md:w-6 md:h-6" />
             </button>
           </div>
 
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition"
+            className="p-1.5 md:p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition"
           >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {theme === 'dark' ? <Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Moon className="w-4 h-4 md:w-5 md:h-5" />}
           </button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
 
-        {/* Left: Public Chat (70%) */}
-        <section className="w-2/3 flex flex-col border-r border-border">
-          <div className="h-12 border-b border-border flex items-center px-4 bg-muted/30">
+        {/* Mobile Tab Bar */}
+        <div className="flex md:hidden border-b border-border bg-card shrink-0">
+          <button
+            onClick={() => setActiveTab('public')}
+            className={`flex-1 py-2.5 text-sm font-semibold text-center transition-colors relative ${
+              activeTab === 'public' ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Users className="w-4 h-4" />
+              公共大厅
+            </span>
+            {activeTab === 'public' && <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />}
+          </button>
+          <button
+            onClick={() => setActiveTab('team')}
+            className={`flex-1 py-2.5 text-sm font-semibold text-center transition-colors relative ${
+              activeTab === 'team' ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" />
+              我的小队
+              {team?.id && <span className="text-[10px] opacity-60">({team.members.length}/{team.maxMembers})</span>}
+            </span>
+            {activeTab === 'team' && <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />}
+          </button>
+        </div>
+
+        {/* Left: Public Chat (70% on desktop, full on mobile) */}
+        <section className={`flex-1 md:flex-initial md:w-2/3 flex flex-col border-r border-border min-h-0 ${activeTab === 'public' ? 'flex' : 'hidden md:flex'}`}>
+          <div className="h-12 border-b border-border items-center px-4 bg-muted/30 hidden md:flex">
             <h2 className="font-semibold text-sm flex items-center">
               <Users className="w-4 h-4 mr-2" />
               公共大厅
@@ -683,67 +724,112 @@ export default function Chat() {
           </div>
 
           {/* Input Area */}
-          <div className="h-24 bg-card border-t border-border p-4 flex flex-col justify-center">
+          <div className="bg-card border-t border-border p-2 md:p-4 flex flex-col justify-center shrink-0">
             <div className="flex space-x-2">
               <input
                 type="text"
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                placeholder="发送招募协议，例如: [xxxx]nickname邀请你加入卫戍协议:盟约【xx模拟】"
-                className="flex-1 bg-input border border-border rounded-lg px-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
+                placeholder="粘贴招募协议..."
+                className="flex-1 h-10 bg-input border border-border rounded-lg px-3 md:px-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
                 disabled={!isConnected}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={cooldown > 0 || !isConnected}
-                className={`px-6 rounded-lg font-medium transition ${cooldown > 0 || !isConnected ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow'}`}
+                className={`h-10 px-4 md:px-6 rounded-lg font-medium text-sm transition shrink-0 ${cooldown > 0 || !isConnected ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow'}`}
               >
-                {cooldown > 0 ? `冷却 ${cooldown}s` : '发送'}
+                {cooldown > 0 ? `${cooldown}s` : '发送'}
               </button>
             </div>
-            <div className="text-[10px] text-muted-foreground mt-2 text-right">
+            <div className="text-[10px] text-muted-foreground mt-1 md:mt-2 text-right hidden md:block">
               当前频段：限制每条消息10秒冷却，一分钟不超过6条
             </div>
           </div>
         </section>
 
-        {/* Right: Team Chat (30%) */}
-        <section className="w-1/3 flex flex-col relative bg-muted/10">
-          <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-muted/30 shrink-0">
-            <h2 className="font-semibold text-sm flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4 mr-1" />
-              当前小队 {team?.id ? `(${team.members.length}/${team.maxMembers})` : ''}
-              {team?.inviteCode && (
-                <>
-                  <span className="text-muted-foreground mx-1">|</span>
-                  <span className="text-primary font-mono text-xs">[{team.inviteCode}]</span>
-                  <button
-                    onClick={() => {
-                      const textToCopy = team.recruitText || (team.inviteCode ? `[${team.inviteCode}]` : '')
-                      if (textToCopy) {
-                        navigator.clipboard?.writeText(textToCopy)
-                        setSuccessMsg('已经复制啦,请打开明日方舟加入小队')
-                        setTimeout(() => setSuccessMsg(null), 3000)
-                      }
-                    }}
-                    className="p-0.5 rounded text-muted-foreground/50 hover:text-primary transition cursor-pointer"
-                    title="复制全条招募消息"
-                  >
-                    <Copy className="w-3 h-3" />
-                  </button>
-                </>
+        {/* Right: Team Chat (30% on desktop, full on mobile) */}
+        <section className={`flex-1 md:flex-initial md:w-1/3 flex flex-col relative bg-muted/10 min-h-0 ${activeTab === 'team' ? 'flex' : 'hidden md:flex'}`}>
+          <div className="h-auto min-h-[3rem] md:h-12 border-b border-border flex flex-col md:flex-row md:items-center justify-between px-3 md:px-4 py-2 md:py-0 bg-muted/30 shrink-0 gap-2 md:gap-0">
+            {/* Mobile First Line: Invite Code Area */}
+            {team?.inviteCode && (
+              <div className="flex md:hidden items-center justify-center gap-2 w-full pb-2 border-b border-border/10">
+                <span className="text-primary font-mono text-sm tracking-widest bg-primary/5 px-4 py-1 rounded border border-primary/20 shadow-inner">
+                  [{team.inviteCode}]
+                </span>
+                <button
+                  onClick={() => {
+                    const textToCopy = team.recruitText || (team.inviteCode ? `[${team.inviteCode}]` : '')
+                    if (textToCopy) {
+                      navigator.clipboard?.writeText(textToCopy)
+                      setSuccessMsg('已经复制啦,请打开明日方舟加入小队')
+                      setTimeout(() => setSuccessMsg(null), 3000)
+                    }
+                  }}
+                  className="p-1.5 rounded bg-card text-muted-foreground border border-border shadow-sm hover:text-primary hover:border-primary/50 active:scale-95 transition cursor-pointer flex items-center justify-center"
+                  title="复制全条招募消息"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Main Header Area (Team Info + Controls) */}
+            <div className="flex items-center justify-between w-full md:w-auto">
+              <h2 className="font-semibold text-sm flex items-center gap-1">
+                <CheckCircle2 className="w-4 h-4 mr-0.5 md:mr-1 text-primary/70" />
+                <span className="hidden md:inline">当前小队</span>
+                <span className="md:hidden">小队</span>
+                {team?.id ? <span className="text-muted-foreground ml-0.5">({team.members.length}/{team.maxMembers})</span> : ''}
+                
+                {/* Desktop Invite Code */}
+                {team?.inviteCode && (
+                  <div className="hidden md:flex items-center ml-2">
+                    <span className="text-muted-foreground/30 mr-2">|</span>
+                    <span className="text-primary font-mono text-xs">[{team.inviteCode}]</span>
+                    <button
+                      onClick={() => {
+                        const textToCopy = team.recruitText || (team.inviteCode ? `[${team.inviteCode}]` : '')
+                        if (textToCopy) {
+                          navigator.clipboard?.writeText(textToCopy)
+                          setSuccessMsg('已经复制啦,请打开明日方舟加入小队')
+                          setTimeout(() => setSuccessMsg(null), 3000)
+                        }
+                      }}
+                      className="p-1 ml-1 rounded text-muted-foreground hover:text-primary hover:bg-muted transition cursor-pointer"
+                      title="复制全条招募消息"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </h2>
+
+              {/* Mobile Leave Button */}
+              {team?.id && (
+                <button
+                  onClick={handleLeaveTeam}
+                  className="md:hidden text-[10px] text-muted-foreground bg-card border border-border pb-0.5 pt-0.5 px-2 rounded hover:text-destructive hover:border-destructive/50 transition flex items-center gap-1 active:scale-95 shadow-sm"
+                  title={isTeamLeader ? "解散队伍" : "离开队伍"}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  {isTeamLeader ? "解散" : "退出"}
+                </button>
               )}
-              {/* 修改人数按钮 - 仅队长可见 */}
+            </div>
+
+            <div className="flex items-center justify-between w-full md:w-auto mt-1 md:mt-0">
+              {/* Modify Team Size Buttons - Only Team Leader */}
               {isTeamLeader && (
-                <div className="flex items-center gap-1 ml-4 bg-background/50 p-0.5 rounded-md border border-border">
+                <div className="flex items-center gap-1 bg-background/50 p-0.5 rounded-md border border-border shadow-inner">
                   {[2, 3, 4].map(size => (
                     <button
                       key={size}
                       onClick={() => updateTeamSize(size)}
-                      className={`text-[9px] font-black w-5 h-5 flex items-center justify-center rounded transition-all duration-200 ${team.maxMembers === size
-                        ? 'bg-primary text-primary-foreground shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]'
-                        : 'text-muted-foreground hover:bg-muted active:scale-95'
+                      className={`text-[10px] md:text-[9px] font-black w-8 h-6 md:w-5 md:h-5 flex items-center justify-center rounded transition-all duration-200 ${team.maxMembers === size
+                        ? 'bg-primary text-primary-foreground shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]'
+                        : 'text-muted-foreground hover:bg-muted/80 active:scale-95'
                         }`}
                       title={`将小队规模修改为 ${size} 人`}
                     >
@@ -752,17 +838,19 @@ export default function Chat() {
                   ))}
                 </div>
               )}
-            </h2>
-            {team?.id && (
-              <button
-                onClick={handleLeaveTeam}
-                className="text-xs text-muted-foreground hover:text-destructive transition flex items-center gap-1"
-                title={isTeamLeader ? "解散队伍" : "离开队伍"}
-              >
-                <X className="w-4 h-4" />
-                {isTeamLeader ? "解散" : "退出"}
-              </button>
-            )}
+
+              {/* Desktop Leave Button */}
+              {team?.id && (
+                <button
+                  onClick={handleLeaveTeam}
+                  className="hidden md:flex text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded transition items-center gap-1 ml-4"
+                  title={isTeamLeader ? "解散队伍" : "离开队伍"}
+                >
+                  <X className="w-4 h-4" />
+                  {isTeamLeader ? "解散" : "退出"}
+                </button>
+              )}
+            </div>
           </div>
 
           {!team?.id ? (
@@ -791,9 +879,9 @@ export default function Chat() {
                 <div className="flex flex-wrap gap-2">
                   {/* 已加入成员 */}
                   {[...team.members].sort((a, b) => a.id === team.creatorId ? -1 : b.id === team.creatorId ? 1 : 0).map(member => (
-                    <div key={member.id} className={`flex items-center space-x-1 pl-1 pr-2 py-1 rounded-full border transition-all duration-300 transform hover:scale-[1.02] ${member.id === team.creatorId ? 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]' : 'bg-muted/50 border-transparent'}`}>
+                    <div key={member.id} className={`flex items-center space-x-1 pl-1 pr-2 py-1 rounded-full border transition-all duration-300 transform hover:scale-[1.02] ${member.id === team.creatorId ? 'bg-rose-500/10 border-rose-500/30 shadow-[0_0_8px_rgba(244,63,94,0.2)]' : 'bg-muted/50 border-transparent'}`}>
                       <img src={member.avatar} alt={member.nickname} className="w-5 h-5 rounded-full object-cover" />
-                      <span className={`text-xs ${member.id === team.creatorId ? 'text-amber-600 font-extrabold' : 'font-medium'}`}>
+                      <span className={`text-xs ${member.id === team.creatorId ? 'text-rose-500 font-extrabold' : 'font-medium'}`}>
                         {member.nickname}{member.nicknameSuffix || ''}{member.id === team.creatorId ? ' (队长)' : ''}
                       </span>
                       {isTeamLeader && member.id !== user?.id && (
@@ -905,7 +993,7 @@ export default function Chat() {
                   type="checkbox"
                   checked={createAllowRandom}
                   onChange={e => setCreateAllowRandom(e.target.checked)}
-                  className="w-4 h-4 accent-primary"
+                  className="w-4 h-4 accent-blue-500"
                 />
                 <label className="text-sm cursor-pointer" onClick={() => setCreateAllowRandom(!createAllowRandom)}>
                   允许他人通过"随机分配"加入此小队
