@@ -98,8 +98,18 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
         }
 
         case 'error': {
-          const errorMsg = (message.payload as { message: string }).message
+          const payload = message.payload as { message: string, code?: number }
+          const errorMsg = payload.message
           console.error('[WebSocket] Server error:', errorMsg)
+          
+          if (payload.code === 4003) {
+            alert(errorMsg || '您的账号已在别处登录，请重新登录')
+            setUser(null)
+            setTeam(null)
+            window.location.href = '/auth'
+            return
+          }
+          
           options.onError?.(errorMsg)
           break
         }
