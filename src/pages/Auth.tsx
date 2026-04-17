@@ -150,7 +150,7 @@ export default function Auth() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 relative">
       {isLoading && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm transition-all duration-300">
           <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
@@ -306,7 +306,7 @@ export default function Auth() {
       )}
 
       {/* Gemini Footer */}
-      <div className="mt-auto pt-8 pb-4 text-center">
+      <div className="absolute bottom-4 left-0 w-full text-center pointer-events-none">
         <p className="text-[10px] text-muted-foreground/30 font-black uppercase tracking-[0.4em]">
           Powered By <span className="text-primary/50">Gemini</span>
         </p>
