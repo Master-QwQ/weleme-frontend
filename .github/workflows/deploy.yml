@@ -1,10 +1,8 @@
-# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
-# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main] # 当 main 分支有推送时触发
+    branches: [main] # 当你向 main 分支推送代码时自动触发
 
 permissions:
   contents: read
@@ -21,7 +19,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 8 # 匹配你项目中的 pnpm 版本
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -41,7 +39,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist' # Vite 默认打包目录
+          path: './dist' # Vite 默认的打包输出目录
 
       - name: Deploy to GitHub Pages
         id: deployment
