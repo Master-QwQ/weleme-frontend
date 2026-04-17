@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback, useState, useRef } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { wsService } from '../lib/websocket'
 import { getFingerprint } from '../lib/fingerprint'
@@ -145,16 +145,25 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
     }
   }, [setWsConnected, setUser, setTeam])
 
+  // Store user ID and token in refs to avoid reconnection on user object changes
+  const userIdRef = useRef(user?.id)
+  const userTokenRef = useRef(user?.token)
+
   useEffect(() => {
-    if (!user?.id) {
-      console.warn('[WebSocket] No user ID, cannot connect')
+    if (!user?.id || !user?.token) {
+      console.warn('[WebSocket] No user ID or token, cannot connect')
       return
     }
 
-    if (!user?.token) {
-      console.warn('[WebSocket] No session token, cannot connect')
+    // Only reconnect if user ID or token actually changed
+    if (userIdRef.current === user.id && userTokenRef.current === user.token) {
+      console.log('[WebSocket] User ID and token unchanged, skipping reconnection')
       return
     }
+
+    // Update refs
+    userIdRef.current = user.id
+    userTokenRef.current = user.token
 
     // Register callbacks
     const unsubscribeMessage = wsService.onMessage(handleMessage)
@@ -184,7 +193,7 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
       unsubscribeClose()
       // Don't disconnect on unmount - keep connection alive for HMR
     }
-  }, [user?.id, user?.token])  // Depend on user.id and user.token
+  }, [user?.id, user?.token])  // Still depend on user.id and user.token to detect actual changes
 
   // Action functions
   const sendPublicMessage = useCallback((content: string) => {
