@@ -21,9 +21,13 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
     (message: WSMessage) => {
       switch (message.type) {
         case 'online_users': {
-          // 新格式：{ count: number }
-          const payload = message.payload as { count: number }
+          // 格式：{ count: number, users?: OnlineUserInfo[] }
+          const payload = message.payload as { count: number; users?: OnlineUserInfo[] }
           setOnlineCount(payload.count)
+          // 如果后端发送了完整用户列表，用它初始化 onlineUsers
+          if (payload.users && Array.isArray(payload.users)) {
+            setOnlineUsers(payload.users)
+          }
           // online_users is sent after all initial state, mark team as synced
           setTeamSynced(true)
           break
