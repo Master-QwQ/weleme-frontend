@@ -24,7 +24,7 @@ class WebSocketService {
   private onOpenCallbacks: ConnectionCallback[] = []
   private onCloseCallbacks: ConnectionCallback[] = []
 
-  connect(userId: string, token?: string): Promise<void> {
+  connect(userId: string | null = null, token?: string, fingerprint?: string): Promise<void> {
     // 如果已经连接，直接返回
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       console.log('[WebSocket] Already connected')
@@ -69,8 +69,11 @@ class WebSocketService {
       }
 
       // 携带 token 鉴权
+      // 携带 token 鉴权，或携带 fingerprint 预热盲连
       if (token) {
         wsUrl += `?token=${encodeURIComponent(token)}`
+      } else if (fingerprint) {
+        wsUrl += `?fingerprint=${encodeURIComponent(fingerprint)}`
       }
 
       console.log(`[WebSocket] Trying ${protocol.toUpperCase()}...`)
@@ -144,6 +147,16 @@ class WebSocketService {
     if (this.ws) {
       this.ws.close()
       this.ws = null
+    }
+  }
+
+  upgradeAuth(token: string): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log('[WebSocket] Upgrading connection with auth token...');
+      this.send({ type: 'auth' as any, payload: { token } });
+      this.token = token;
+    } else {
+      console.warn('[WebSocket] Cannot upgrade auth: Connection not open or missing.');
     }
   }
 

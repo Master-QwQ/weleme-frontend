@@ -9,6 +9,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "@/styles/datepicker_custom.css";
 import { parse, format, isValid } from "date-fns";
+import { wsService } from '../lib/websocket';
 
 export interface RegistrationData {
   doctorId: string
@@ -493,6 +494,10 @@ export default function Register() {
           doctorLevel: formData.doctorLevel,
           token: res.user.token
         })
+        
+        // 使用已预热的连接，瞬间升权授权
+        wsService.upgradeAuth(res.user.token)
+        
         localStorage.removeItem('weleme_registration_form') // Clear form cache on success
         navigate('/loading')
       } else {

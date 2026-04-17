@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { Loader2 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { getFingerprint } from '@/lib/fingerprint'
+import { wsService } from '../lib/websocket'
 
 export default function Auth() {
   const navigate = useNavigate()
@@ -75,6 +76,10 @@ export default function Auth() {
       if (!res.success) {
         throw new Error(res.message || '发送失败')
       }
+      
+      // 开启 WebSocket 盲连预热
+      wsService.connect(null, undefined, getFingerprint()).catch(e => console.warn('[WS Pre-warm] Failed', e));
+      
     } catch (err) {
       console.error('Failed to send code', err)
       setErrorVisible(true)
@@ -123,6 +128,10 @@ export default function Auth() {
             teamId: res.user.teamId,
             token: res.user.token
           })
+          
+          // 如果该用户直接登录，使用已预热的连接升级权限
+          wsService.upgradeAuth(res.user.token)
+          
           navigate('/loading')
         } else {
           // New user, go to register with temp data
