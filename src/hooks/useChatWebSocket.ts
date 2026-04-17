@@ -137,7 +137,7 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
     console.log('[WebSocket] Connection closed with code:', code)
     setWsConnected(false)
 
-    if (code === 4001) {
+    if (code === 4001 || code === 4003) {
       alert('登录已失效或在别处登录，请重新登录')
       setUser(null)
       setTeam(null)
