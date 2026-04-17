@@ -5,7 +5,6 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/weleme-frontend/', // 必须和你的仓库名一致
   plugins: [
     react(), 
     tailwindcss()
