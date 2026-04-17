@@ -1026,6 +1026,13 @@ export default function Register() {
           </div>
         </div>
       )}
+
+      {/* Gemini Footer */}
+      <div className="mt-auto pt-8 pb-4 w-full text-center">
+        <p className="text-[10px] text-muted-foreground/30 font-black uppercase tracking-[0.4em]">
+          Powered By <span className="text-primary/50">Gemini</span>
+        </p>
+      </div>
     </div>
   )
 }
