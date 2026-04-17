@@ -146,8 +146,9 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
   }, [setWsConnected, setUser, setTeam])
 
   // Store user ID and token in refs to avoid reconnection on user object changes
-  const userIdRef = useRef(user?.id)
-  const userTokenRef = useRef(user?.token)
+  // Initialize to undefined so the first mount always triggers connection
+  const userIdRef = useRef<string | undefined>(undefined)
+  const userTokenRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (!user?.id || !user?.token) {

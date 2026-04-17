@@ -20,6 +20,7 @@ class WebSocketService {
   private ws: WebSocket | null = null
   private userId: string | null = null
   private token: string | null = null
+  private fingerprint: string | null = null  // 缓存 fingerprint，重连时复用
   private sessionId: string = generateUUID()  // 会话唯一标识
   private reconnectAttempts = 0
   private maxReconnectAttempts = 10
@@ -68,6 +69,7 @@ class WebSocketService {
     return new Promise((resolve, reject) => {
       this.userId = userId
       this.token = null // 初始化为null，等待升级认证
+      if (fingerprint) this.fingerprint = fingerprint  // 缓存 fingerprint
       this.isManualClose = false
 
       // 协议检测：HTTPS 下必须使用 WSS，否则浏览器会拦截
@@ -174,7 +176,7 @@ class WebSocketService {
       console.log('[WebSocket] Upgrading connection with auth token...');
       const timestamp = Date.now(); // Unix时间戳（毫秒）
       this.send({ 
-        type: 'auth' as any, 
+        type: 'auth', 
         payload: { 
           token, 
           timestamp, 
@@ -235,7 +237,7 @@ class WebSocketService {
 
     setTimeout(() => {
       if (this.userId && !this.isManualClose) {
-        this.connect(this.userId, this.token || undefined).catch(console.error)
+        this.connect(this.userId, this.token || undefined, this.fingerprint || undefined).catch(console.error)
       }
     }, delay)
   }
