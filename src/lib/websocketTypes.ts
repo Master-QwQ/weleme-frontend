@@ -9,6 +9,8 @@ export type ClientMessageType =
   | 'leave_team'
   | 'remove_member'
   | 'update_team_size'
+  | 'random_join'
+  | 'join_user_team'
   | 'send_public_message'
   | 'send_team_message'
   | 'dissolve_team'
@@ -34,6 +36,7 @@ export type JoinTeamPayload = { teamId: string }
 export type RemoveMemberPayload = { targetUserId: string }
 export type UpdateTeamSizePayload = { maxMembers: number }
 export type SendMessagePayload = { content: string; teamId?: string }
+export type JoinUserTeamPayload = { targetUserId: string }
 
 export type TeamMember = {
   id: string

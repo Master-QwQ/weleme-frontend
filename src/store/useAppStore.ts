@@ -30,12 +30,21 @@ export interface Team {
   recruitText?: string
 }
 
-export interface OnlineUser {
-  userId: string
+export interface TeamMember {
+  id: string
   nickname: string
   nicknameSuffix?: string
   avatar: string
-  teamId?: string | null
+}
+
+export interface Team {
+  id: string
+  creatorId: string
+  members: TeamMember[]
+  maxMembers: number
+  allowRandomJoin?: boolean
+  inviteCode?: string
+  recruitText?: string
 }
 
 interface AppState {
@@ -60,8 +69,8 @@ interface AppState {
   setTeam: (team: Team | null) => void
   teamSynced: boolean
   setTeamSynced: (synced: boolean) => void
-  onlineUsers: OnlineUser[]
-  setOnlineUsers: (users: OnlineUser[] | ((prev: OnlineUser[]) => OnlineUser[])) => void
+  onlineCount: number
+  setOnlineCount: (count: number) => void
   wsConnected: boolean
   setWsConnected: (connected: boolean) => void
 }
@@ -90,10 +99,8 @@ export const useAppStore = create<AppState>()(
       setTeam: (team) => set({ team }),
       teamSynced: false,
       setTeamSynced: (synced) => set({ teamSynced: synced }),
-      onlineUsers: [],
-      setOnlineUsers: (users) => set((state) => ({
-        onlineUsers: typeof users === 'function' ? users(state.onlineUsers) : users
-      })),
+      onlineCount: 0,
+      setOnlineCount: (count) => set({ onlineCount: count }),
       wsConnected: false,
       setWsConnected: (connected) => set({ wsConnected: connected })
     }),

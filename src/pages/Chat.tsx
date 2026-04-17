@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Moon, Sun, Users, Shuffle, MessageSquare, CheckCircle2, Wifi, WifiOff, UserMinus, X, Send, Check, Copy, Search } from 'lucide-react'
 import { motion } from 'framer-motion'
-
+import { getFingerprint } from '../lib/fingerprint'
+// 延迟导入 getFingerprint，避免在模块顶层未使用时报错
 import { useAppStore } from '../store/useAppStore'
 import { useChatWebSocket } from '../hooks/useChatWebSocket'
 import { wsService } from '../lib/websocket'
@@ -144,7 +145,7 @@ function MessageBubble({ msg, onJoinTeam, showJoinButton, getUserAvatar, onJoinT
 
 export default function Chat() {
   const navigate = useNavigate()
-  const { theme, setTheme, user, setUser, team, onlineUsers, wsConnected, avatarCache, updateAvatarCache } = useAppStore()
+  const { theme, setTheme, user, setUser, team, onlineCount, wsConnected, avatarCache, updateAvatarCache } = useAppStore()
 
   // 没有 token 时跳转回验证页
   useEffect(() => {
@@ -172,21 +173,6 @@ export default function Chat() {
       updateAvatarCache(updates)
     }
   }, [publicMessages, teamMessages])
-
-  // 在线用户变化时同步头像缓存（其他用户换头像时实时更新）
-  useEffect(() => {
-    if (onlineUsers.length > 0) {
-      const updates: Record<string, string> = {}
-      for (const u of onlineUsers) {
-        if (u.avatar) {
-          updates[u.userId] = u.avatar
-        }
-      }
-      if (Object.keys(updates).length > 0) {
-        updateAvatarCache(updates)
-      }
-    }
-  }, [onlineUsers])
 
   // 从缓存获取头像，无缓存时返回空
   const getUserAvatar = useCallback((userId: string) => {
@@ -222,13 +208,13 @@ export default function Chat() {
     sendPublicMessage,
     sendTeamMessage,
     createTeam,
-    joinTeam,
     leaveTeam,
     dissolveTeam,
     removeMember,
     updateTeamSize,
+    sendRandomJoin,
+    sendJoinUserTeam,
     isConnected,
-    onlineCount
   } = useChatWebSocket({
     onPublicMessage: (msg) => {
       setPublicMessages(prev => deduplicateMessages(prev, {
@@ -407,7 +393,6 @@ export default function Chat() {
         setShowAvatarPicker(false)
         // 重连WebSocket，让服务端自动广播新头像给所有在线用户
         wsService.disconnect()
-        const { getFingerprint } = await import('../lib/fingerprint')
         wsService.connect(user.id, user.token, getFingerprint()).catch(() => { })
       } else {
         setAvatarChangeError(res.message || '更换头像失败')
@@ -505,23 +490,7 @@ export default function Chat() {
       return
     }
 
-    const teamsWithSlots = onlineUsers
-      .filter(u => u.teamId && u.userId !== user?.id)
-      .reduce((acc: Map<string, number>, u) => {
-        if (u.teamId) {
-          acc.set(u.teamId, (acc.get(u.teamId) || 0) + 1)
-        }
-        return acc
-      }, new Map<string, number>())
-
-    for (const [teamId, count] of teamsWithSlots) {
-      if (count < 4) {
-        joinTeam(teamId, true)
-        return
-      }
-    }
-
-    alert('当前没有可用的队伍，请创建新队伍')
+    sendRandomJoin()
   }
 
   const handleJoinTeamById = (userId: string) => {
@@ -535,16 +504,12 @@ export default function Chat() {
       return
     }
 
-    const targetUser = onlineUsers.find(u => u.userId === userId)
-    if (!targetUser || !targetUser.teamId) {
-      alert('该用户不在任何队伍中')
-      return
-    }
     if (team) {
       alert('您已在队伍中，请先离开当前队伍')
       return
     }
-    joinTeam(targetUser.teamId)
+
+    sendJoinUserTeam(userId)
   }
 
   const handleLeaveTeam = () => {
@@ -662,9 +627,8 @@ export default function Chat() {
         <div className="flex md:hidden border-b border-border bg-card shrink-0">
           <button
             onClick={() => setActiveTab('public')}
-            className={`flex-1 py-2.5 text-sm font-semibold text-center transition-colors relative ${
-              activeTab === 'public' ? 'text-primary' : 'text-muted-foreground'
-            }`}
+            className={`flex-1 py-2.5 text-sm font-semibold text-center transition-colors relative ${activeTab === 'public' ? 'text-primary' : 'text-muted-foreground'
+              }`}
           >
             <span className="flex items-center justify-center gap-1.5">
               <Users className="w-4 h-4" />
@@ -674,9 +638,8 @@ export default function Chat() {
           </button>
           <button
             onClick={() => setActiveTab('team')}
-            className={`flex-1 py-2.5 text-sm font-semibold text-center transition-colors relative ${
-              activeTab === 'team' ? 'text-primary' : 'text-muted-foreground'
-            }`}
+            className={`flex-1 py-2.5 text-sm font-semibold text-center transition-colors relative ${activeTab === 'team' ? 'text-primary' : 'text-muted-foreground'
+              }`}
           >
             <span className="flex items-center justify-center gap-1.5">
               <CheckCircle2 className="w-4 h-4" />
@@ -784,7 +747,7 @@ export default function Chat() {
                 <span className="hidden md:inline">当前小队</span>
                 <span className="md:hidden">小队</span>
                 {team?.id ? <span className="text-muted-foreground ml-0.5">({team.members.length}/{team.maxMembers})</span> : ''}
-                
+
                 {/* Desktop Invite Code */}
                 {team?.inviteCode && (
                   <div className="hidden md:flex items-center ml-2">

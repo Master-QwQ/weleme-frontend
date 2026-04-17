@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { wsService } from '../lib/websocket'
 import { getFingerprint } from '../lib/fingerprint'
@@ -13,21 +13,15 @@ interface UseChatWebSocketOptions {
 }
 
 export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
-  const { user, setUser, setTeam, setTeamSynced, setOnlineUsers, setWsConnected } = useAppStore()
-  const [onlineCount, setOnlineCount] = useState(0)
+  const { user, setUser, setTeam, setTeamSynced, setOnlineCount, updateAvatarCache, setWsConnected } = useAppStore()
 
   // Handle incoming messages
   const handleMessage = useCallback(
     (message: WSMessage) => {
       switch (message.type) {
         case 'online_users': {
-          // 格式：{ count: number, users?: OnlineUserInfo[] }
-          const payload = message.payload as { count: number; users?: OnlineUserInfo[] }
+          const payload = message.payload as { count: number }
           setOnlineCount(payload.count)
-          // 如果后端发送了完整用户列表，用它初始化 onlineUsers
-          if (payload.users && Array.isArray(payload.users)) {
-            setOnlineUsers(payload.users)
-          }
           // online_users is sent after all initial state, mark team as synced
           setTeamSynced(true)
           break
@@ -35,19 +29,15 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
 
         case 'user_online': {
           const newUser = message.payload as OnlineUserInfo
-          setOnlineUsers(prev => {
-            // Avoid duplicates
-            if (prev.some(u => u.userId === newUser.userId)) {
-              return prev
-            }
-            return [...prev, newUser]
-          })
+          // 直接更新头像缓存，无需维护用户列表
+          if (newUser.avatar) {
+            updateAvatarCache({ [newUser.userId]: newUser.avatar })
+          }
           break
         }
 
         case 'user_offline': {
-          const offlineUserId = (message.payload as { userId: string }).userId
-          setOnlineUsers(prev => prev.filter(u => u.userId !== offlineUserId))
+          // 不再维护在线用户列表，忽略此事件
           break
         }
 
@@ -86,10 +76,6 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
             userId: string
             teamId?: string | null
           }
-          // Update online users team info
-          setOnlineUsers(prev =>
-            prev.map(u => (u.userId === userId ? { ...u, teamId } : u))
-          )
           // 如果是自己离开队伍，清除 team 状态
           if (userId === user?.id && !teamId) {
             setTeam(null)
@@ -118,7 +104,7 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
           console.log('[WebSocket] Unknown message type:', message.type)
       }
     },
-    [setUser, setTeam, setTeamSynced, setOnlineUsers, user, options]
+    [setUser, setTeam, setTeamSynced, setOnlineCount, updateAvatarCache, user, options]
   )
 
   // Handle errors
@@ -257,6 +243,20 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
     })
   }, [])
 
+  const sendRandomJoin = useCallback(() => {
+    wsService.send({
+      type: 'random_join',
+      payload: {}
+    })
+  }, [])
+
+  const sendJoinUserTeam = useCallback((targetUserId: string) => {
+    wsService.send({
+      type: 'join_user_team',
+      payload: { targetUserId }
+    })
+  }, [])
+
   return {
     sendPublicMessage,
     sendTeamMessage,
@@ -266,7 +266,8 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
     dissolveTeam,
     removeMember,
     updateTeamSize,
+    sendRandomJoin,
+    sendJoinUserTeam,
     isConnected: wsService.isConnected(),
-    onlineCount
   }
 }
