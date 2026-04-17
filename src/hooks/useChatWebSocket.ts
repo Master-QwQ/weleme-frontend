@@ -1,6 +1,7 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { wsService } from '../lib/websocket'
+import { getFingerprint } from '../lib/fingerprint'
 import type { WSMessage, MessageData, TeamInfo, OnlineUserInfo } from '../lib/websocketTypes'
 
 interface UseChatWebSocketOptions {
@@ -13,23 +14,18 @@ interface UseChatWebSocketOptions {
 
 export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
   const { user, setUser, setTeam, setTeamSynced, setOnlineUsers, setWsConnected } = useAppStore()
+  const [onlineCount, setOnlineCount] = useState(0)
 
   // Handle incoming messages
   const handleMessage = useCallback(
     (message: WSMessage) => {
       switch (message.type) {
         case 'online_users': {
-          const users = message.payload as OnlineUserInfo[]
-          setOnlineUsers(users)
+          // 新格式：{ count: number }
+          const payload = message.payload as { count: number }
+          setOnlineCount(payload.count)
           // online_users is sent after all initial state, mark team as synced
           setTeamSynced(true)
-          // 补全当前用户的 nicknameSuffix（从 localStorage 恢复的旧数据可能缺少）
-          if (user?.id) {
-            const me = users.find(u => u.userId === user.id)
-            if (me && me.nicknameSuffix && me.nicknameSuffix !== user.nicknameSuffix) {
-              setUser({ ...user, nicknameSuffix: me.nicknameSuffix })
-            }
-          }
           break
         }
 
@@ -166,8 +162,16 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
     const unsubscribeOpen = wsService.onOpen(handleOpen)
     const unsubscribeClose = wsService.onClose(handleClose)
 
+    // Check if already connected and update state
+    if (wsService.isConnected()) {
+      handleOpen()
+      // 发送注册消息，确保获取队伍信息
+      wsService.send({ type: 'register', payload: { userId: user.id } })
+    }
+
     // Connect to WebSocket (only if not already connected)
-    wsService.connect(user.id, user.token).catch(err => {
+    const fingerprint = getFingerprint()
+    wsService.connect(user.id, user.token, fingerprint).catch(err => {
       console.error('[WebSocket] Connection failed:', err)
       options.onError?.('Failed to connect to server')
     })
@@ -248,6 +252,7 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
     dissolveTeam,
     removeMember,
     updateTeamSize,
-    isConnected: wsService.isConnected()
+    isConnected: wsService.isConnected(),
+    onlineCount
   }
 }

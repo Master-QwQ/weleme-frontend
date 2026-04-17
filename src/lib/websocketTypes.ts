@@ -2,6 +2,7 @@
 
 export type ClientMessageType =
   | 'ping'
+  | 'register'
   | 'create_team'
   | 'join_team'
   | 'leave_team'

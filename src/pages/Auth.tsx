@@ -74,6 +74,12 @@ export default function Auth() {
     try {
       const res = await api.post('/api/auth/send-code', { email: targetEmail, type: 'register' })
       if (!res.success) {
+        if (res.code === 'RATE_LIMITED' && res.retryAfter) {
+          // 处理速率限制错误，设置正确的倒计时
+          setErrorVisible(true)
+          setTimer(res.retryAfter)
+          throw new Error(res.message || '发送过于频繁，请稍后再试')
+        }
         throw new Error(res.message || '发送失败')
       }
       
@@ -82,8 +88,10 @@ export default function Auth() {
       
     } catch (err) {
       console.error('Failed to send code', err)
-      setErrorVisible(true)
-      setTimer(0) // Allow immediate retry on failure
+      if (!errorVisible) {
+        setErrorVisible(true)
+      }
+      // 不要在速率限制错误时重置计时器，因为已经设置了正确的倒计时
     } finally {
       setIsPending(false)
     }
@@ -92,13 +100,13 @@ export default function Auth() {
   const handleSendCode = async () => {
     if (!email) return
     setStep('code')
-    setTimer(60)
+    // 不要在这里设置timer，让triggerEmailSend函数根据响应来设置
     triggerEmailSend(email)
   }
 
   const handleResend = () => {
     if (timer > 0 || isPending) return
-    setTimer(60)
+    // 不要在这里设置timer，让triggerEmailSend函数根据响应来设置
     triggerEmailSend(email)
   }
 

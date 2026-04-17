@@ -227,7 +227,8 @@ export default function Chat() {
     dissolveTeam,
     removeMember,
     updateTeamSize,
-    isConnected
+    isConnected,
+    onlineCount
   } = useChatWebSocket({
     onPublicMessage: (msg) => {
       setPublicMessages(prev => deduplicateMessages(prev, {
@@ -619,8 +620,8 @@ export default function Chat() {
 
           {/* Online Users Count - 移动端精简 */}
           <div className="text-[10px] md:text-xs text-muted-foreground">
-            <span className="hidden md:inline">在线: {onlineUsers.length > 99 ? '99+' : onlineUsers.length}</span>
-            <span className="md:hidden">{onlineUsers.length > 9 ? '9+' : onlineUsers.length}</span>
+            <span className="hidden md:inline">在线: {onlineCount > 99 ? '99+' : onlineCount}</span>
+            <span className="md:hidden">{onlineCount > 9 ? '9+' : onlineCount}</span>
           </div>
 
           {/* User Info Block */}
@@ -731,7 +732,7 @@ export default function Chat() {
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                placeholder="粘贴招募协议..."
+                placeholder="粘贴招募协议...[xxxx]nickname邀请你加入卫戍协议:盟约【xx模拟】"
                 className="flex-1 h-10 bg-input border border-border rounded-lg px-3 md:px-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
                 disabled={!isConnected}
               />

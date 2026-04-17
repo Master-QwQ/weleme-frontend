@@ -8,10 +8,19 @@ import type {
   ConnectionCallback
 } from './websocketTypes'
 
+// 生成UUID函数
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
 class WebSocketService {
   private ws: WebSocket | null = null
   private userId: string | null = null
   private token: string | null = null
+  private sessionId: string = generateUUID()  // 会话唯一标识
   private reconnectAttempts = 0
   private maxReconnectAttempts = 10
   private reconnectDelay = 1000
@@ -27,6 +36,10 @@ class WebSocketService {
   connect(userId: string | null = null, token?: string, fingerprint?: string): Promise<void> {
     // 如果已经连接，直接返回
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      // 如果有token且未升级认证，执行升级
+      if (token && !this.token) {
+        this.upgradeAuth(token)
+      }
       console.log('[WebSocket] Already connected')
       return Promise.resolve()
     }
@@ -38,6 +51,10 @@ class WebSocketService {
         const checkInterval = setInterval(() => {
           if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             clearInterval(checkInterval)
+            // 如果有token且未升级认证，执行升级
+            if (token && !this.token) {
+              this.upgradeAuth(token)
+            }
             resolve()
           } else if (this.ws && this.ws.readyState === WebSocket.CLOSED) {
             clearInterval(checkInterval)
@@ -50,7 +67,7 @@ class WebSocketService {
     this.isConnecting = true
     return new Promise((resolve, reject) => {
       this.userId = userId
-      this.token = token || null
+      this.token = null // 初始化为null，等待升级认证
       this.isManualClose = false
 
       // 协议检测：HTTPS 下必须使用 WSS，否则浏览器会拦截
@@ -68,11 +85,8 @@ class WebSocketService {
         wsUrl = baseUrl.replace(/^http(s)?/, protocol) + '/ws/chat'
       }
 
-      // 携带 token 鉴权
-      // 携带 token 鉴权，或携带 fingerprint 预热盲连
-      if (token) {
-        wsUrl += `?token=${encodeURIComponent(token)}`
-      } else if (fingerprint) {
+      // 总是使用 fingerprint 连接，废弃直接使用 token 连接
+      if (fingerprint) {
         wsUrl += `?fingerprint=${encodeURIComponent(fingerprint)}`
       }
 
@@ -87,6 +101,11 @@ class WebSocketService {
           this.isConnecting = false
           this.reconnectAttempts = 0
           this.reconnectDelay = 1000
+
+          // 连接成功后，如果有token，执行升级认证
+          if (token) {
+            this.upgradeAuth(token)
+          }
 
           this.startHeartbeat()
           this.onOpenCallbacks.forEach(cb => cb())
@@ -153,7 +172,15 @@ class WebSocketService {
   upgradeAuth(token: string): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       console.log('[WebSocket] Upgrading connection with auth token...');
-      this.send({ type: 'auth' as any, payload: { token } });
+      const timestamp = Date.now(); // Unix时间戳（毫秒）
+      this.send({ 
+        type: 'auth' as any, 
+        payload: { 
+          token, 
+          timestamp, 
+          sessionId: this.sessionId 
+        } 
+      });
       this.token = token;
     } else {
       console.warn('[WebSocket] Cannot upgrade auth: Connection not open or missing.');
