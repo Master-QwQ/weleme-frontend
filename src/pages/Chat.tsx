@@ -407,7 +407,8 @@ export default function Chat() {
         setShowAvatarPicker(false)
         // 重连WebSocket，让服务端自动广播新头像给所有在线用户
         wsService.disconnect()
-        wsService.connect(user.id, user.token).catch(() => { })
+        const { getFingerprint } = await import('../lib/fingerprint')
+        wsService.connect(user.id, user.token, getFingerprint()).catch(() => { })
       } else {
         setAvatarChangeError(res.message || '更换头像失败')
       }
