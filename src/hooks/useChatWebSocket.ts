@@ -15,6 +15,10 @@ interface UseChatWebSocketOptions {
 export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
   const { user, setUser, setTeam, setTeamSynced, setOnlineCount, updateAvatarCache, setWsConnected } = useAppStore()
 
+  // 用 ref 存储 options，确保 handleMessage 始终读取最新值
+  const optionsRef = useRef(options)
+  optionsRef.current = options
+
   // Handle incoming messages
   const handleMessage = useCallback(
     (message: WSMessage) => {
@@ -48,26 +52,26 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
           const team = message.payload as TeamInfo
           console.log('[WebSocket] Team update:', message.type, team)
           setTeam(team)
-          options.onTeamUpdate?.(team)
+          optionsRef.current.onTeamUpdate?.(team)
           break
         }
 
         case 'team_dissolved': {
           const { teamId } = message.payload as { teamId: string }
           setTeam(null)
-          options.onTeamDissolved?.(teamId)
+          optionsRef.current.onTeamDissolved?.(teamId)
           break
         }
 
         case 'public_message': {
           const msg = message.payload as MessageData
-          options.onPublicMessage?.(msg)
+          optionsRef.current.onPublicMessage?.(msg)
           break
         }
 
         case 'team_message': {
           const msg = message.payload as MessageData
-          options.onTeamMessage?.(msg)
+          optionsRef.current.onTeamMessage?.(msg)
           break
         }
 
@@ -96,7 +100,7 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
             return
           }
           
-          options.onError?.(errorMsg)
+          optionsRef.current.onError?.(errorMsg)
           break
         }
 
@@ -104,7 +108,7 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
           console.log('[WebSocket] Unknown message type:', message.type)
       }
     },
-    [setUser, setTeam, setTeamSynced, setOnlineCount, updateAvatarCache, user, options]
+    [setUser, setTeam, setTeamSynced, setOnlineCount, updateAvatarCache, user]
   )
 
   // Handle errors
