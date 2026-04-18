@@ -65,6 +65,7 @@ export function useChatWebSocket(options: UseChatWebSocketOptions = {}) {
 
         case 'public_message': {
           const msg = message.payload as MessageData
+          console.log('[useChatWebSocket] public_message callback triggered, msg id:', msg.id)
           optionsRef.current.onPublicMessage?.(msg)
           break
         }

@@ -100,6 +100,7 @@ class WebSocketService {
 
         this.ws.onopen = () => {
           console.log('[WebSocket] Connected successfully')
+          console.log('[WebSocket] Registered callbacks count - message:', this.onMessageCallbacks.length, 'open:', this.onOpenCallbacks.length)
           this.isConnecting = false
           this.reconnectAttempts = 0
           this.reconnectDelay = 1000
@@ -117,10 +118,14 @@ class WebSocketService {
         this.ws.onmessage = (event) => {
           try {
             const message: WSMessage = JSON.parse(event.data)
-            console.log('[WebSocket] Received:', message.type)
+            console.log('[WebSocket] Received:', message.type, message.payload)
 
             if (message.type === 'pong') {
               return
+            }
+
+            if (message.type === 'public_message') {
+              console.log('[WebSocket] public_message received, triggering callbacks, callback count:', this.onMessageCallbacks.length)
             }
 
             this.onMessageCallbacks.forEach(cb => cb(message))
